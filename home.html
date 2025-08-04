@@ -5,85 +5,517 @@
     <meta charset="UTF-8">
     <title>לוח כרטיסים - בני ברק</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Arial', sans-serif;
+        * {
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1500&q=80') no-repeat center center fixed;
             background-size: cover;
             min-height: 100vh;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.3) 0%, rgba(118, 75, 162, 0.3) 100%);
+            z-index: -1;
         }
 
         header {
-            background-color: rgba(255, 255, 255, 0.85);
-            padding: 1.5rem;
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            padding: 2rem 1rem;
             text-align: center;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(255, 255, 255, 0.05) 10px,
+                rgba(255, 255, 255, 0.05) 20px
+            );
+            animation: float 20s linear infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
         }
 
         h1 {
-            margin: 0;
-            color: #ff5722;
+            color: white;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+
+        .subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.1rem;
+            margin-top: 0.5rem;
+            position: relative;
+            z-index: 1;
         }
 
         main {
-            max-width: 700px;
-            margin: auto;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .user-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
             padding: 2rem;
-            background-color: rgba(255, 255, 255, 0.95);
-            border-radius: 12px;
-            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
-        input,
-        button {
-            margin: 0.5rem 0;
-            padding: 0.75rem;
-            width: 100%;
-            border-radius: 8px;
-            border: 1px solid #ccc;
-            font-size: 1rem;
+        .user-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
 
-        button {
-            background-color: #ff9800;
-            color: white;
+        .welcome-text {
+            font-size: 1.2rem;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .btn {
+            padding: 12px 24px;
             border: none;
+            border-radius: 25px;
+            font-size: 1rem;
+            font-weight: 600;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
 
-        button:hover {
-            background-color: #e67e22;
+        .btn-primary {
+            background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #54a0ff, #74b9ff);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(84, 160, 255, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #5f27cd, #a55eea);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(95, 39, 205, 0.4);
+        }
+
+        .btn-logout {
+            background: linear-gradient(45deg, #ff6348, #ff7675);
+            color: white;
+        }
+
+        .btn-logout:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 99, 72, 0.4);
+        }
+
+        .search-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 15px 20px;
+            border: 2px solid #e1e8ed;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #ff6b6b;
+            box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.1);
+        }
+
+        .posts-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            position: relative;
+        }
+
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            border-radius: 2px;
         }
 
         .card {
-            background-color: #fff9f1;
-            padding: 1rem;
-            border: 1px solid #f0cfa3;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 15px;
             margin-bottom: 1rem;
-            border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+            transform: translate(30px, -30px);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            color: #fff;
+        }
+
+        .card-info {
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .card-info strong {
+            color: #feca57;
+        }
+
+        .delete-btn {
+            margin-top: 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .delete-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .modal-title {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .close {
+            position: absolute;
+            top: 15px;
+            left: 20px;
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close:hover {
+            color: #feca57;
+        }
+
+        .modal-body {
+            padding: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            color: white;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #feca57;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .modal-footer {
+            padding: 1.5rem 2rem;
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .hide {
             display: none;
         }
 
-        .section-title {
+        .footer {
+            text-align: center;
+            padding: 2rem;
             margin-top: 2rem;
-            font-size: 1.4rem;
-            color: #ff7043;
-            border-bottom: 2px solid #ffc107;
-            display: inline-block;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+        }
+
+        .footer a {
+            color: #feca57;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .user-info {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .btn {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+            }
         }
     </style>
+</head>
+
+<body>
+    <header>
+        <h1><i class="fas fa-ticket-alt"></i> לוח החלפת כרטיסים</h1>
+        <div class="subtitle">בני ברק • חופשת קיץ 2025</div>
+    </header>
+
+    <main>
+        <div class="user-section">
+            <div id="postSection" class="hide">
+                <div class="user-info">
+                    <div class="welcome-text">
+                        <i class="fas fa-user-circle"></i> שלום <span id="userName"></span>!
+                    </div>
+                    <div>
+                        <button class="btn btn-success" onclick="openModal()">
+                            <i class="fas fa-plus"></i> פרסם מודעה חדשה
+                        </button>
+                        <button class="btn btn-logout" onclick="signOut()">
+                            <i class="fas fa-sign-out-alt"></i> התנתק
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="loginPrompt">
+                <div style="text-align: center;">
+                    <button class="btn btn-primary" onclick="signInWithGoogle()">
+                        <i class="fab fa-google"></i> התחבר עם גוגל כדי לפרסם מודעה
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="search-section">
+            <div class="section-title">
+                <i class="fas fa-search"></i> חיפוש מודעות
+            </div>
+            <input type="text" id="searchInput" class="search-input" placeholder="הקלד שם אירוע או קוד...">
+        </div>
+
+        <div class="posts-section">
+            <div class="section-title">
+                <i class="fas fa-list"></i> מודעות קיימות
+            </div>
+            <div id="posts"></div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>כל הזכויות שמורות © 2025</p>
+        <p>נבנה על ידי <a href="mailto:p0533105452@gmail.com"><strong>p0533105452@gmail.com</strong></a></p>
+    </footer>
+
+    <!-- Modal -->
+    <div id="postModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <h2 class="modal-title"><i class="fas fa-plus-circle"></i> פרסם מודעה חדשה</h2>
+            </div>
+            <div class="modal-body">
+                <form id="postForm">
+                    <div class="form-group">
+                        <label class="form-label">שם האירוע</label>
+                        <input type="text" id="eventName" class="form-input" placeholder="לדוגמה: הופעת זמר ישראלי" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">קוד האירוע</label>
+                        <input type="text" id="eventCode" class="form-input" placeholder="קוד זיהוי האירוע" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">מספר כרטיסים</label>
+                        <input type="number" id="ticketCount" class="form-input" placeholder="כמה כרטיסים יש לך" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">שם ליצירת קשר</label>
+                        <input type="text" id="contactName" class="form-input" placeholder="השם שלך" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">פרטי יצירת קשר</label>
+                        <input type="text" id="contactPhone" class="form-input" placeholder="טלפון או מייל" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" onclick="submitPost()">
+                    <i class="fas fa-check"></i> אשר ופרסם
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithPopup, signOut, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, query, orderBy, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
-
 
         const firebaseConfig = {
             apiKey: "AIzaSyAtXUnR_DIDITUtHg5BxwrMIJlNUYd8G3U",
@@ -110,110 +542,145 @@
                 postSection.classList.remove('hide');
                 userNameSpan.textContent = user.displayName;
                 currentUserEmail = user.email;
+                loadPosts();
             } else {
                 loginPrompt.classList.remove('hide');
                 postSection.classList.add('hide');
                 currentUserEmail = null;
+                loadPosts();
             }
         });
 
         window.signInWithGoogle = async function () {
             const provider = new GoogleAuthProvider();
-            await signInWithPopup(auth, provider);
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                console.error('שגיאה בהתחברות:', error);
+            }
         }
 
         window.signOut = async function () {
-            await signOut(auth);
+            try {
+                await signOut(auth);
+            } catch (error) {
+                console.error('שגיאה בהתנתקות:', error);
+            }
         }
 
-        document.getElementById('postForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        window.openModal = function() {
+            document.getElementById('postModal').style.display = 'block';
+        }
+
+        window.closeModal = function() {
+            document.getElementById('postModal').style.display = 'none';
+            document.getElementById('postForm').reset();
+        }
+
+        window.submitPost = async function() {
             if (!currentUserEmail) return;
+            
+            const eventName = document.getElementById('eventName').value;
+            const eventCode = document.getElementById('eventCode').value;
+            const ticketCount = document.getElementById('ticketCount').value;
+            const contactName = document.getElementById('contactName').value;
+            const contactPhone = document.getElementById('contactPhone').value;
+
+            if (!eventName || !eventCode || !ticketCount || !contactName || !contactPhone) {
+                alert('אנא מלא את כל השדות');
+                return;
+            }
+
             const post = {
-                eventName: document.getElementById('eventName').value,
-                eventCode: document.getElementById('eventCode').value,
-                ticketCount: document.getElementById('ticketCount').value,
-                contactName: document.getElementById('contactName').value,
-                contactPhone: document.getElementById('contactPhone').value,
+                eventName,
+                eventCode,
+                ticketCount,
+                contactName,
+                contactPhone,
                 email: currentUserEmail,
                 createdAt: new Date()
             };
-            await addDoc(collection(db, 'posts'), post);
-            alert('המודעה פורסמה בהצלחה!');
-            document.getElementById('postForm').reset();
-            loadPosts();
-        });
+
+            try {
+                await addDoc(collection(db, 'posts'), post);
+                alert('המודעה פורסמה בהצלחה! 🎉');
+                closeModal();
+                loadPosts();
+            } catch (error) {
+                console.error('שגיאה בפרסום המודעה:', error);
+                alert('אירעה שגיאה בפרסום המודעה');
+            }
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('postModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
 
         document.getElementById('searchInput').addEventListener('input', loadPosts);
 
         async function loadPosts() {
-            const searchValue = document.getElementById('searchInput').value.toLowerCase();
-            const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
-            const snapshot = await getDocs(q);
-            const container = document.getElementById('posts');
-            container.innerHTML = '';
-            snapshot.forEach(docSnap => {
-                const data = docSnap.data();
-                if (
-                    data.eventName.toLowerCase().includes(searchValue) ||
-                    data.eventCode.toLowerCase().includes(searchValue)
-                ) {
-                    const div = document.createElement('div');
-                    div.className = 'card';
-                    div.innerHTML = `
-            <b>אירוע:</b> ${data.eventName}<br>
-            <b>קוד:</b> ${data.eventCode}<br>
-            <b>כרטיסים:</b> ${data.ticketCount}<br>
-            <b>שם ליצירת קשר:</b> ${data.contactName}<br>
-            <b>טלפון / מייל:</b> ${data.contactPhone}<br>
-          `;
-                    if (data.email === currentUserEmail) {
-                        const btn = document.createElement('button');
-                        btn.textContent = '🗑️ מחק';
-                        btn.onclick = async () => {
-                            await deleteDoc(doc(db, 'posts', docSnap.id));
-                            loadPosts();
-                        };
-                        div.appendChild(btn);
+            try {
+                const searchValue = document.getElementById('searchInput').value.toLowerCase();
+                const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+                const snapshot = await getDocs(q);
+                const container = document.getElementById('posts');
+                container.innerHTML = '';
+                
+                let hasResults = false;
+                
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    if (
+                        data.eventName.toLowerCase().includes(searchValue) ||
+                        data.eventCode.toLowerCase().includes(searchValue)
+                    ) {
+                        hasResults = true;
+                        const div = document.createElement('div');
+                        div.className = 'card';
+                        div.innerHTML = `
+                            <div class="card-content">
+                                <div class="card-title">${data.eventName}</div>
+                                <div class="card-info"><strong>קוד:</strong> ${data.eventCode}</div>
+                                <div class="card-info"><strong>כרטיסים:</strong> ${data.ticketCount}</div>
+                                <div class="card-info"><strong>שם ליצירת קשר:</strong> ${data.contactName}</div>
+                                <div class="card-info"><strong>טלפון / מייל:</strong> ${data.contactPhone}</div>
+                                ${data.email === currentUserEmail ? 
+                                    `<button class="delete-btn" onclick="deletePost('${docSnap.id}')">
+                                        <i class="fas fa-trash"></i> מחק מודעה
+                                    </button>` : ''}
+                            </div>
+                        `;
+                        container.appendChild(div);
                     }
-                    container.appendChild(div);
+                });
+
+                if (!hasResults) {
+                    container.innerHTML = '<div style="text-align: center; color: #666; padding: 2rem;">לא נמצאו מודעות מתאימות</div>';
                 }
-            });
+            } catch (error) {
+                console.error('שגיאה בטעינת המודעות:', error);
+            }
         }
 
+        window.deletePost = async function(docId) {
+            if (confirm('האם אתה בטוח שברצונך למחוק את המודעה?')) {
+                try {
+                    await deleteDoc(doc(db, 'posts', docId));
+                    loadPosts();
+                } catch (error) {
+                    console.error('שגיאה במחיקת המודעה:', error);
+                    alert('אירעה שגיאה במחיקת המודעה');
+                }
+            }
+        }
+
+        // Load posts on page load
         loadPosts();
     </script>
-</head>
-
-<body>
-    <header>
-        <h1>לוח החלפת כרטיסים - בני ברק</h1>
-    </header>
-    <main>
-        <div id="userDiv">
-            <div id="postSection" class="hide">
-                <p>שלום <span id="userName"></span> | <button onclick="signOut()">התנתק</button></p>
-                <h2 class="section-title">📢 פרסם מודעה חדשה</h2>
-                <form id="postForm">
-                    <input type="text" id="eventName" placeholder="שם האירוע" required>
-                    <input type="text" id="eventCode" placeholder="קוד האירוע" required>
-                    <input type="number" id="ticketCount" placeholder="מספר כרטיסים" required>
-                    <input type="text" id="contactName" placeholder="שם ליצירת קשר" required>
-                    <input type="text" id="contactPhone" placeholder="טלפון או מייל" required>
-                    <button type="submit">פרסם</button>
-                </form>
-            </div>
-            <div id="loginPrompt">
-                <button onclick="signInWithGoogle()">🔐 התחבר עם גוגל כדי לפרסם מודעה</button>
-            </div>
-        </div>
-
-        <h2 class="section-title">🔍 חיפוש מודעות</h2>
-        <input type="text" id="searchInput" placeholder="הקלד שם אירוע או קוד">
-
-        <h2 class="section-title">מודעות קיימות</h2>
-        <div id="posts"></div>
-    </main>
 </body>
 
 </html>
