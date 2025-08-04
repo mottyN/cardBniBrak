@@ -297,20 +297,24 @@
 
         .modal-content {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            margin: 5% auto;
+            margin: 2% auto;
             padding: 0;
             border-radius: 20px;
             width: 90%;
             max-width: 500px;
+            max-height: 95vh;
             box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
             position: relative;
-            overflow: hidden;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
         }
 
         .modal-header {
             background: rgba(255, 255, 255, 0.1);
-            padding: 1.5rem 2rem;
+            padding: 1rem 1.5rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            flex-shrink: 0;
         }
 
         .modal-title {
@@ -336,11 +340,13 @@
         }
 
         .modal-body {
-            padding: 2rem;
+            padding: 1.5rem;
+            flex: 1;
+            overflow-y: auto;
         }
 
         .form-group {
-            margin-bottom: 1.5rem;
+            margin-bottom: 1rem;
         }
 
         .form-label {
@@ -372,9 +378,10 @@
         }
 
         .modal-footer {
-            padding: 1.5rem 2rem;
+            padding: 1rem 1.5rem;
             text-align: center;
             border-top: 1px solid rgba(255, 255, 255, 0.2);
+            flex-shrink: 0;
         }
 
         .hide {
@@ -411,6 +418,24 @@
             .btn {
                 padding: 10px 20px;
                 font-size: 0.9rem;
+            }
+
+            .modal-content {
+                margin: 1% auto;
+                width: 95%;
+                max-height: 98vh;
+            }
+
+            .modal-body {
+                padding: 1rem;
+            }
+
+            .modal-header {
+                padding: 1rem;
+            }
+
+            .modal-footer {
+                padding: 1rem;
             }
         }
     </style>
@@ -505,7 +530,7 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-success" onclick="submitPost()">
+                <button type="submit" form="postForm" class="btn btn-success">
                     <i class="fas fa-check"></i> אשר ופרסם
                 </button>
             </div>
@@ -577,7 +602,8 @@
             document.getElementById('postForm').reset();
         }
 
-        window.submitPost = async function() {
+        document.getElementById('postForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
             if (!currentUserEmail) return;
             
             const eventName = document.getElementById('eventName').value;
@@ -610,6 +636,11 @@
                 console.error('שגיאה בפרסום המודעה:', error);
                 alert('אירעה שגיאה בפרסום המודעה');
             }
+        });
+
+        window.submitPost = async function() {
+            // This function is now redundant but kept for compatibility
+            document.getElementById('postForm').dispatchEvent(new Event('submit'));
         }
 
         // Close modal when clicking outside
