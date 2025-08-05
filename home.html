@@ -405,6 +405,21 @@
             text-decoration: underline;
         }
 
+        .loading {
+            text-align: center;
+            color: #666;
+            padding: 2rem;
+        }
+
+        .error {
+            text-align: center;
+            color: #ff6b6b;
+            padding: 2rem;
+            background: rgba(255, 107, 107, 0.1);
+            border-radius: 10px;
+            margin: 1rem 0;
+        }
+
         @media (max-width: 768px) {
             h1 {
                 font-size: 2rem;
@@ -540,7 +555,6 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithPopup, signOut, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, getDocs, query, orderBy, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAtXUnR_DIDITUtHg5BxwrMIJlNUYd8G3U",
@@ -554,24 +568,192 @@
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const db = getFirestore(app);
-
+        
+        // Firestore REST API Configuration
+        const PROJECT_ID = 'card-bni-brek';
+        const COLLECTION_NAME = 'posts';
+        const API_KEY = 'AIzaSyAtXUnR_DIDITUtHg5BxwrMIJlNUYd8G3U';
+        
         const userNameSpan = document.getElementById('userName');
         const loginPrompt = document.getElementById('loginPrompt');
         const postSection = document.getElementById('postSection');
         let currentUserEmail = null;
+        let currentUser = null;
 
+        // Firestore REST API Helper Functions
+        class FirestoreREST {
+            constructor(projectId, apiKey) {
+                this.projectId = projectId;
+                this.apiKey = apiKey;
+                this.baseURL = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
+            }
+
+            // Convert JavaScript value to Firestore value format
+            toFirestoreValue(value) {
+                if (value === null || value === undefined) {
+                    return { nullValue: null };
+                }
+                if (typeof value === 'string') {
+                    return { stringValue: value };
+                }
+                if (typeof value === 'number') {
+                    return Number.isInteger(value) ? { integerValue: value.toString() } : { doubleValue: value };
+                }
+                if (typeof value === 'boolean') {
+                    return { booleanValue: value };
+                }
+                if (value instanceof Date) {
+                    return { timestampValue: value.toISOString() };
+                }
+                if (Array.isArray(value)) {
+                    return {
+                        arrayValue: {
+                            values: value.map(v => this.toFirestoreValue(v))
+                        }
+                    };
+                }
+                if (typeof value === 'object') {
+                    const fields = {};
+                    for (const [key, val] of Object.entries(value)) {
+                        fields[key] = this.toFirestoreValue(val);
+                    }
+                    return { mapValue: { fields } };
+                }
+                return { stringValue: String(value) };
+            }
+
+            // Convert Firestore value format to JavaScript value
+            fromFirestoreValue(value) {
+                if (!value) return null;
+                
+                if (value.stringValue !== undefined) return value.stringValue;
+                if (value.integerValue !== undefined) return parseInt(value.integerValue);
+                if (value.doubleValue !== undefined) return parseFloat(value.doubleValue);
+                if (value.booleanValue !== undefined) return value.booleanValue;
+                if (value.timestampValue !== undefined) return new Date(value.timestampValue);
+                if (value.nullValue !== undefined) return null;
+                if (value.arrayValue) {
+                    return value.arrayValue.values ? value.arrayValue.values.map(v => this.fromFirestoreValue(v)) : [];
+                }
+                if (value.mapValue && value.mapValue.fields) {
+                    const obj = {};
+                    for (const [key, val] of Object.entries(value.mapValue.fields)) {
+                        obj[key] = this.fromFirestoreValue(val);
+                    }
+                    return obj;
+                }
+                return null;
+            }
+
+            // Get documents from collection
+            async getDocuments(collectionName, orderBy = null) {
+                try {
+                    let url = `${this.baseURL}/${collectionName}?key=${this.apiKey}`;
+                    
+                    if (orderBy) {
+                        url += `&orderBy=${orderBy.field}%20${orderBy.direction || 'desc'}`;
+                    }
+                    
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (!data.documents) {
+                        return [];
+                    }
+                    
+                    return data.documents.map(doc => {
+                        const id = doc.name.split('/').pop();
+                        const fields = {};
+                        
+                        if (doc.fields) {
+                            for (const [key, value] of Object.entries(doc.fields)) {
+                                fields[key] = this.fromFirestoreValue(value);
+                            }
+                        }
+                        
+                        return { id, ...fields };
+                    });
+                } catch (error) {
+                    console.error('Error getting documents:', error);
+                    throw error;
+                }
+            }
+
+            // Add document to collection
+            async addDocument(collectionName, data) {
+                try {
+                    const fields = {};
+                    for (const [key, value] of Object.entries(data)) {
+                        fields[key] = this.toFirestoreValue(value);
+                    }
+
+                    const response = await fetch(
+                        `${this.baseURL}/${collectionName}?key=${this.apiKey}`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ fields })
+                        }
+                    );
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    return result.name.split('/').pop(); // Return document ID
+                } catch (error) {
+                    console.error('Error adding document:', error);
+                    throw error;
+                }
+            }
+
+            // Delete document
+            async deleteDocument(collectionName, docId) {
+                try {
+                    const response = await fetch(
+                        `${this.baseURL}/${collectionName}/${docId}?key=${this.apiKey}`,
+                        {
+                            method: 'DELETE'
+                        }
+                    );
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    return true;
+                } catch (error) {
+                    console.error('Error deleting document:', error);
+                    throw error;
+                }
+            }
+        }
+
+        // Initialize Firestore REST client
+        const firestoreREST = new FirestoreREST(PROJECT_ID, API_KEY);
+
+        // Authentication handlers
         onAuthStateChanged(auth, user => {
             if (user) {
                 loginPrompt.classList.add('hide');
                 postSection.classList.remove('hide');
                 userNameSpan.textContent = user.displayName;
                 currentUserEmail = user.email;
+                currentUser = user;
                 loadPosts();
             } else {
                 loginPrompt.classList.remove('hide');
                 postSection.classList.add('hide');
                 currentUserEmail = null;
+                currentUser = null;
                 loadPosts();
             }
         });
@@ -582,6 +764,7 @@
                 await signInWithPopup(auth, provider);
             } catch (error) {
                 console.error('שגיאה בהתחברות:', error);
+                alert('שגיאה בהתחברות: ' + error.message);
             }
         }
 
@@ -593,6 +776,7 @@
             }
         }
 
+        // Modal handlers
         window.openModal = function() {
             document.getElementById('postModal').style.display = 'block';
         }
@@ -602,18 +786,24 @@
             document.getElementById('postForm').reset();
         }
 
+        // Form submission
         document.getElementById('postForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             if (!currentUserEmail) return;
             
-            const eventName = document.getElementById('eventName').value;
-            const eventCode = document.getElementById('eventCode').value;
-            const ticketCount = document.getElementById('ticketCount').value;
-            const contactName = document.getElementById('contactName').value;
-            const contactPhone = document.getElementById('contactPhone').value;
+            const eventName = document.getElementById('eventName').value.trim();
+            const eventCode = document.getElementById('eventCode').value.trim();
+            const ticketCount = parseInt(document.getElementById('ticketCount').value);
+            const contactName = document.getElementById('contactName').value.trim();
+            const contactPhone = document.getElementById('contactPhone').value.trim();
 
             if (!eventName || !eventCode || !ticketCount || !contactName || !contactPhone) {
                 alert('אנא מלא את כל השדות');
+                return;
+            }
+
+            if (ticketCount <= 0) {
+                alert('מספר הכרטיסים חייב להיות חיובי');
                 return;
             }
 
@@ -624,24 +814,36 @@
                 contactName,
                 contactPhone,
                 email: currentUserEmail,
-                createdAt: new Date()
+                createdAt: new Date(),
+                userId: currentUser.uid
             };
 
             try {
-                await addDoc(collection(db, 'posts'), post);
+                // Show loading state
+                const submitBtn = document.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> מפרסם...';
+                submitBtn.disabled = true;
+
+                await firestoreREST.addDocument(COLLECTION_NAME, post);
+                
                 alert('המודעה פורסמה בהצלחה! 🎉');
                 closeModal();
-                loadPosts();
+                await loadPosts();
+                
+                // Reset button
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
             } catch (error) {
                 console.error('שגיאה בפרסום המודעה:', error);
-                alert('אירעה שגיאה בפרסום המודעה');
+                alert('אירעה שגיאה בפרסום המודעה: ' + error.message);
+                
+                // Reset button
+                const submitBtn = document.querySelector('button[type="submit"]');
+                submitBtn.innerHTML = '<i class="fas fa-check"></i> אשר ופרסם';
+                submitBtn.disabled = false;
             }
         });
-
-        window.submitPost = async function() {
-            // This function is now redundant but kept for compatibility
-            document.getElementById('postForm').dispatchEvent(new Event('submit'));
-        }
 
         // Close modal when clicking outside
         window.onclick = function(event) {
@@ -651,36 +853,56 @@
             }
         }
 
+        // Search functionality
         document.getElementById('searchInput').addEventListener('input', loadPosts);
 
+        // Load posts function
         async function loadPosts() {
             try {
-                const searchValue = document.getElementById('searchInput').value.toLowerCase();
-                const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
-                const snapshot = await getDocs(q);
                 const container = document.getElementById('posts');
-                container.innerHTML = '';
+                container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> טוען מודעות...</div>';
                 
+                const searchValue = document.getElementById('searchInput').value.toLowerCase().trim();
+                
+                // Get all posts ordered by creation date
+                const posts = await firestoreREST.getDocuments(COLLECTION_NAME, {
+                    field: 'createdAt',
+                    direction: 'desc'
+                });
+                
+                container.innerHTML = '';
                 let hasResults = false;
                 
-                snapshot.forEach(docSnap => {
-                    const data = docSnap.data();
-                    if (
-                        data.eventName.toLowerCase().includes(searchValue) ||
-                        data.eventCode.toLowerCase().includes(searchValue)
-                    ) {
+                posts.forEach(post => {
+                    // Apply search filter
+                    if (searchValue === '' || 
+                        (post.eventName && post.eventName.toLowerCase().includes(searchValue)) ||
+                        (post.eventCode && post.eventCode.toLowerCase().includes(searchValue))) {
+                        
                         hasResults = true;
                         const div = document.createElement('div');
                         div.className = 'card';
+                        
+                        // Format creation date
+                        let dateStr = '';
+                        if (post.createdAt) {
+                            const date = new Date(post.createdAt);
+                            dateStr = date.toLocaleDateString('he-IL') + ' ' + date.toLocaleTimeString('he-IL', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                        }
+                        
                         div.innerHTML = `
                             <div class="card-content">
-                                <div class="card-title">${data.eventName}</div>
-                                <div class="card-info"><strong>קוד:</strong> ${data.eventCode}</div>
-                                <div class="card-info"><strong>כרטיסים:</strong> ${data.ticketCount}</div>
-                                <div class="card-info"><strong>שם ליצירת קשר:</strong> ${data.contactName}</div>
-                                <div class="card-info"><strong>טלפון / מייל:</strong> ${data.contactPhone}</div>
-                                ${data.email === currentUserEmail ? 
-                                    `<button class="delete-btn" onclick="deletePost('${docSnap.id}')">
+                                <div class="card-title">${post.eventName || 'ללא שם'}</div>
+                                <div class="card-info"><strong>קוד:</strong> ${post.eventCode || 'ללא קוד'}</div>
+                                <div class="card-info"><strong>כרטיסים:</strong> ${post.ticketCount || 0}</div>
+                                <div class="card-info"><strong>שם ליצירת קשר:</strong> ${post.contactName || 'ללא שם'}</div>
+                                <div class="card-info"><strong>טלפון / מייל:</strong> ${post.contactPhone || 'ללא פרטים'}</div>
+                                ${dateStr ? `<div class="card-info"><strong>תאריך פרסום:</strong> ${dateStr}</div>` : ''}
+                                ${post.email === currentUserEmail ? 
+                                    `<button class="delete-btn" onclick="deletePost('${post.id}')">
                                         <i class="fas fa-trash"></i> מחק מודעה
                                     </button>` : ''}
                             </div>
@@ -694,23 +916,100 @@
                 }
             } catch (error) {
                 console.error('שגיאה בטעינת המודעות:', error);
+                const container = document.getElementById('posts');
+                container.innerHTML = `
+                    <div class="error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        שגיאה בטעינת המודעות: ${error.message}
+                        <br><br>
+                        <button class="btn btn-secondary" onclick="loadPosts()">
+                            <i class="fas fa-refresh"></i> נסה שוב
+                        </button>
+                    </div>
+                `;
             }
         }
 
+        // Delete post function
         window.deletePost = async function(docId) {
             if (confirm('האם אתה בטוח שברצונך למחוק את המודעה?')) {
                 try {
-                    await deleteDoc(doc(db, 'posts', docId));
-                    loadPosts();
+                    await firestoreREST.deleteDocument(COLLECTION_NAME, docId);
+                    await loadPosts();
+                    alert('המודעה נמחקה בהצלחה');
                 } catch (error) {
                     console.error('שגיאה במחיקת המודעה:', error);
-                    alert('אירעה שגיאה במחיקת המודעה');
+                    alert('אירעה שגיאה במחיקת המודעה: ' + error.message);
                 }
             }
         }
 
         // Load posts on page load
         loadPosts();
+
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // ESC to close modal
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+            
+            // Ctrl+K to focus search
+            if (e.ctrlKey && e.key === 'k') {
+                e.preventDefault();
+                document.getElementById('searchInput').focus();
+            }
+        });
+
+        // Auto-refresh posts every 30 seconds
+        setInterval(async () => {
+            if (!document.hidden) { // Only refresh if page is visible
+                try {
+                    await loadPosts();
+                } catch (error) {
+                    console.error('שגיאה ברענון אוטומטי:', error);
+                }
+            }
+        }, 30000);
+
+        // Handle page visibility change
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                // Page became visible, refresh posts
+                loadPosts();
+            }
+        });
+
+        // Handle online/offline status
+        window.addEventListener('online', () => {
+            console.log('חזרה לחיבור אינטרנט');
+            loadPosts();
+        });
+
+        window.addEventListener('offline', () => {
+            console.log('אין חיבור אינטרנט');
+            const container = document.getElementById('posts');
+            if (container.innerHTML.includes('loading')) {
+                container.innerHTML = `
+                    <div class="error">
+                        <i class="fas fa-wifi-slash"></i>
+                        אין חיבור אינטרנט
+                        <br><br>
+                        בדוק את החיבור שלך ונסה שוב
+                    </div>
+                `;
+            }
+        });
+
+        // Service Worker registration for better caching (optional)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // You can add a service worker here for offline functionality
+                console.log('Service Worker support detected');
+            });
+        }
+
+        console.log('אפליקציית לוח הכרטיסים הופעלה בהצלחה עם Firestore REST API');
     </script>
 </body>
 
