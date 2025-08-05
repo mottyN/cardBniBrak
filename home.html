@@ -563,6 +563,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithPopup, signOut, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAtXUnR_DIDITUtHg5BxwrMIJlNUYd8G3U",
@@ -576,186 +577,13 @@
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-
-        // Firestore REST API Configuration
-        const PROJECT_ID = 'card-bni-brek';
-        const COLLECTION_NAME = 'posts';
-        const API_KEY = 'AIzaSyAtXUnR_DIDITUtHg5BxwrMIJlNUYd8G3U';
+        const db = getFirestore(app);
 
         const userNameSpan = document.getElementById('userName');
         const loginPrompt = document.getElementById('loginPrompt');
         const postSection = document.getElementById('postSection');
         let currentUserEmail = null;
         let currentUser = null;
-
-        // Firestore REST API Helper Functions
-        class FirestoreREST {
-            constructor(projectId, apiKey) {
-                this.projectId = projectId;
-                this.apiKey = apiKey;
-                this.baseURL = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
-            }
-
-            // Convert JavaScript value to Firestore value format
-            toFirestoreValue(value) {
-                if (value === null || value === undefined) {
-                    return { nullValue: null };
-                }
-                if (typeof value === 'string') {
-                    return { stringValue: value };
-                }
-                if (typeof value === 'number') {
-                    return Number.isInteger(value) ? { integerValue: value.toString() } : { doubleValue: value };
-                }
-                if (typeof value === 'boolean') {
-                    return { booleanValue: value };
-                }
-                if (value instanceof Date) {
-                    return { timestampValue: value.toISOString() };
-                }
-                if (Array.isArray(value)) {
-                    return {
-                        arrayValue: {
-                            values: value.map(v => this.toFirestoreValue(v))
-                        }
-                    };
-                }
-                if (typeof value === 'object') {
-                    const fields = {};
-                    for (const [key, val] of Object.entries(value)) {
-                        fields[key] = this.toFirestoreValue(val);
-                    }
-                    return { mapValue: { fields } };
-                }
-                return { stringValue: String(value) };
-            }
-
-            // Convert Firestore value format to JavaScript value
-            fromFirestoreValue(value) {
-                if (!value) return null;
-
-                if (value.stringValue !== undefined) return value.stringValue;
-                if (value.integerValue !== undefined) return parseInt(value.integerValue);
-                if (value.doubleValue !== undefined) return parseFloat(value.doubleValue);
-                if (value.booleanValue !== undefined) return value.booleanValue;
-                if (value.timestampValue !== undefined) return new Date(value.timestampValue);
-                if (value.nullValue !== undefined) return null;
-                if (value.arrayValue) {
-                    return value.arrayValue.values ? value.arrayValue.values.map(v => this.fromFirestoreValue(v)) : [];
-                }
-                if (value.mapValue && value.mapValue.fields) {
-                    const obj = {};
-                    for (const [key, val] of Object.entries(value.mapValue.fields)) {
-                        obj[key] = this.fromFirestoreValue(val);
-                    }
-                    return obj;
-                }
-                return null;
-            }
-
-            // Get documents from collection
-            async getDocuments(collectionName, orderBy = null) {
-                try {
-                    let url = `${this.baseURL}/${collectionName}?key=${this.apiKey}`;
-
-                    if (orderBy) {
-                        url += `&orderBy=${orderBy.field}%20${orderBy.direction || 'desc'}`;
-                    }
-
-                    const response = await fetch(url);
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-
-                    const data = await response.json();
-
-                    if (!data.documents) {
-                        return [];
-                    }
-
-                    return data.documents.map(doc => {
-                        const id = doc.name.split('/').pop();
-                        const fields = {};
-
-                        if (doc.fields) {
-                            for (const [key, value] of Object.entries(doc.fields)) {
-                                fields[key] = this.fromFirestoreValue(value);
-                            }
-                        }
-
-                        return { id, ...fields };
-                    });
-                } catch (error) {
-                    console.error('Error getting documents:', error);
-                    throw error;
-                }
-            }
-
-            // Add document to collection
-            async addDocument(collectionName, data) {
-                try {
-                    const fields = {};
-                    for (const [key, value] of Object.entries(data)) {
-                        fields[key] = this.toFirestoreValue(value);
-                    }
-
-                    const token = await currentUser.getIdToken(); // ⬅️ קח את הטוקן
-
-                    const response = await fetch(
-                        `${this.baseURL}/${collectionName}?key=${this.apiKey}`,
-                        {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}` // ⬅️ שלח אותו בכותרת
-                            },
-                            body: JSON.stringify({ fields })
-                        }
-                    );
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-
-                    const result = await response.json();
-                    return result.name.split('/').pop(); // Return document ID
-                } catch (error) {
-                    console.error('Error adding document:', error);
-                    throw error;
-                }
-            }
-
-            // Delete document
-            async deleteDocument(collectionName, docId) {
-                try {
-                    const token = await currentUser.getIdToken(); // ⬅️ שוב, קח את הטוקן
-
-                    const response = await fetch(
-                        `${this.baseURL}/${collectionName}/${docId}?key=${this.apiKey}`,
-                        {
-                            method: 'DELETE',
-                            headers: {
-                                'Authorization': `Bearer ${token}` // ⬅️ ושלח אותו
-                            }
-                        }
-                    );
-
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-
-                    return true;
-                } catch (error) {
-                    console.error('Error deleting document:', error);
-                    throw error;
-                }
-            }
-
-        }
-
-        // Initialize Firestore REST client
-        const firestoreREST = new FirestoreREST(PROJECT_ID, API_KEY);
 
         // Authentication handlers
         onAuthStateChanged(auth, user => {
@@ -765,15 +593,7 @@
                 userNameSpan.textContent = user.displayName;
                 currentUserEmail = user.email;
                 currentUser = user;
-
-                // Force token refresh on login
-                user.getIdToken(true).then(() => {
-                    console.log('טוקן אימות התחדש');
-                    loadPosts();
-                }).catch(error => {
-                    console.error('שגיאה ברענון טוקן:', error);
-                    loadPosts();
-                });
+                loadPosts();
             } else {
                 loginPrompt.classList.remove('hide');
                 postSection.classList.add('hide');
@@ -782,18 +602,6 @@
                 loadPosts();
             }
         });
-
-        // Refresh token periodically (every 50 minutes)
-        setInterval(async () => {
-            if (currentUser) {
-                try {
-                    await currentUser.getIdToken(true);
-                    console.log('טוקן אימות התחדש אוטומטית');
-                } catch (error) {
-                    console.error('שגיאה ברענון אוטומטי של טוקן:', error);
-                }
-            }
-        }, 50 * 60 * 1000); // 50 minutes
 
         window.signInWithGoogle = async function () {
             const provider = new GoogleAuthProvider();
@@ -870,12 +678,12 @@
                     contactName,
                     contactPhone,
                     email: currentUserEmail,
-                    createdAt: new Date(),
+                    createdAt: serverTimestamp(),
                     userId: currentUser.uid
                 };
 
                 console.log('שולח מודעה:', post);
-                await firestoreREST.addDocument(COLLECTION_NAME, post);
+                await addDoc(collection(db, 'posts'), post);
                 console.log('מודעה נשלחה בהצלחה');
 
                 alert('המודעה פורסמה בהצלחה! 🎉');
@@ -884,20 +692,17 @@
 
             } catch (error) {
                 console.error('שגיאה בפרסום המודעה:', error);
-                alert('שגיאה: ' + error.message);
+                if (error.code === 'permission-denied') {
+                    alert('שגיאה באישורים. אנא בדוק את הגדרות הפרויקט בפיירבייס.');
+                } else {
+                    alert('שגיאה: ' + error.message);
+                }
             } finally {
                 // Always reset button state
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
             }
         });
-
-        // Additional click handler for the submit button (backup)
-        window.submitPost = async function () {
-            const form = document.getElementById('postForm');
-            const event = new Event('submit', { cancelable: true });
-            form.dispatchEvent(event);
-        }
 
         // Close modal when clicking outside
         window.onclick = function (event) {
@@ -919,15 +724,16 @@
                 const searchValue = document.getElementById('searchInput').value.toLowerCase().trim();
 
                 // Get all posts ordered by creation date
-                const posts = await firestoreREST.getDocuments(COLLECTION_NAME, {
-                    field: 'createdAt',
-                    direction: 'desc'
-                });
+                const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+                const querySnapshot = await getDocs(q);
 
                 container.innerHTML = '';
                 let hasResults = false;
 
-                posts.forEach(post => {
+                querySnapshot.forEach((docSnapshot) => {
+                    const post = docSnapshot.data();
+                    const postId = docSnapshot.id;
+
                     // Apply search filter
                     if (searchValue === '' ||
                         (post.eventName && post.eventName.toLowerCase().includes(searchValue)) ||
@@ -940,7 +746,7 @@
                         // Format creation date
                         let dateStr = '';
                         if (post.createdAt) {
-                            const date = new Date(post.createdAt);
+                            const date = post.createdAt.toDate();
                             dateStr = date.toLocaleDateString('he-IL') + ' ' + date.toLocaleTimeString('he-IL', {
                                 hour: '2-digit',
                                 minute: '2-digit'
@@ -956,7 +762,7 @@
                                 <div class="card-info"><strong>טלפון / מייל:</strong> ${post.contactPhone || 'ללא פרטים'}</div>
                                 ${dateStr ? `<div class="card-info"><strong>תאריך פרסום:</strong> ${dateStr}</div>` : ''}
                                 ${post.email === currentUserEmail ?
-                                `<button class="delete-btn" onclick="deletePost('${post.id}')">
+                                `<button class="delete-btn" onclick="deletePost('${postId}')">
                                         <i class="fas fa-trash"></i> מחק מודעה
                                     </button>` : ''}
                             </div>
@@ -993,17 +799,13 @@
 
             if (confirm('האם אתה בטוח שברצונך למחוק את המודעה?')) {
                 try {
-                    const token = await currentUser.getIdToken(); // שליפת טוקן
-
-                    await firestoreREST.deleteDocument(COLLECTION_NAME, docId, token); // שליחת טוקן למחיקה
+                    await deleteDoc(doc(db, 'posts', docId));
                     await loadPosts();
                     alert('המודעה נמחקה בהצלחה');
                 } catch (error) {
                     console.error('שגיאה במחיקת המודעה:', error);
-
-                    if (error.message.includes('אימות')) {
-                        alert('בעיית אימות - נסה להתחבר מחדש');
-                        await signOut(auth);
+                    if (error.code === 'permission-denied') {
+                        alert('שגיאה באישורים - אין לך הרשאה למחוק את המודעה הזו');
                     } else {
                         alert('שגיאה במחיקת המודעה: ' + error.message);
                     }
@@ -1033,21 +835,6 @@
                 const form = document.getElementById('postForm');
                 const event = new Event('submit', { cancelable: true });
                 form.dispatchEvent(event);
-            }
-        });
-
-        // Add click handler to submit button as backup
-        document.addEventListener('DOMContentLoaded', function () {
-            const submitBtn = document.getElementById('submitBtn');
-            if (submitBtn) {
-                submitBtn.addEventListener('click', function (e) {
-                    if (this.type !== 'submit') {
-                        e.preventDefault();
-                        const form = document.getElementById('postForm');
-                        const event = new Event('submit', { cancelable: true });
-                        form.dispatchEvent(event);
-                    }
-                });
             }
         });
 
@@ -1091,15 +878,7 @@
             }
         });
 
-        // Service Worker registration for better caching (optional)
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                // You can add a service worker here for offline functionality
-                console.log('Service Worker support detected');
-            });
-        }
-
-        console.log('אפליקציית לוח הכרטיסים הופעלה בהצלחה עם Firestore REST API');
+        console.log('אפליקציית לוח הכרטיסים הופעלה בהצלחה עם Firestore SDK');
     </script>
 </body>
 
