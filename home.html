@@ -545,8 +545,11 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="submit" form="postForm" class="btn btn-success">
+                <button type="submit" form="postForm" class="btn btn-success" id="submitBtn">
                     <i class="fas fa-check"></i> אשר ופרסם
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="closeModal()" style="margin-right: 10px;">
+                    <i class="fas fa-times"></i> ביטול
                 </button>
             </div>
         </div>
@@ -789,61 +792,78 @@
         // Form submission
         document.getElementById('postForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            if (!currentUserEmail) return;
             
-            const eventName = document.getElementById('eventName').value.trim();
-            const eventCode = document.getElementById('eventCode').value.trim();
-            const ticketCount = parseInt(document.getElementById('ticketCount').value);
-            const contactName = document.getElementById('contactName').value.trim();
-            const contactPhone = document.getElementById('contactPhone').value.trim();
-
-            if (!eventName || !eventCode || !ticketCount || !contactName || !contactPhone) {
-                alert('אנא מלא את כל השדות');
+            if (!currentUserEmail || !currentUser) {
+                alert('אנא התחבר קודם');
                 return;
             }
-
-            if (ticketCount <= 0) {
-                alert('מספר הכרטיסים חייב להיות חיובי');
-                return;
-            }
-
-            const post = {
-                eventName,
-                eventCode,
-                ticketCount,
-                contactName,
-                contactPhone,
-                email: currentUserEmail,
-                createdAt: new Date(),
-                userId: currentUser.uid
-            };
-
+            
+            const submitBtn = document.querySelector('#postModal button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            
             try {
-                // Show loading state
-                const submitBtn = document.querySelector('button[type="submit"]');
-                const originalText = submitBtn.innerHTML;
+                // Show loading state immediately
                 submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> מפרסם...';
                 submitBtn.disabled = true;
+                
+                const eventName = document.getElementById('eventName').value.trim();
+                const eventCode = document.getElementById('eventCode').value.trim();
+                const ticketCount = parseInt(document.getElementById('ticketCount').value);
+                const contactName = document.getElementById('contactName').value.trim();
+                const contactPhone = document.getElementById('contactPhone').value.trim();
 
+                // Validation
+                if (!eventName || !eventCode || !contactName || !contactPhone) {
+                    throw new Error('אנא מלא את כל השדות החובה');
+                }
+
+                if (!ticketCount || ticketCount <= 0) {
+                    throw new Error('מספר הכרטיסים חייב להיות חיובי');
+                }
+
+                if (eventName.length > 100) {
+                    throw new Error('שם האירוע ארוך מדי (מקסימום 100 תווים)');
+                }
+
+                if (eventCode.length > 50) {
+                    throw new Error('קוד האירוע ארוך מדי (מקסימום 50 תווים)');
+                }
+
+                const post = {
+                    eventName,
+                    eventCode,
+                    ticketCount,
+                    contactName,
+                    contactPhone,
+                    email: currentUserEmail,
+                    createdAt: new Date(),
+                    userId: currentUser.uid
+                };
+
+                console.log('שולח מודעה:', post);
                 await firestoreREST.addDocument(COLLECTION_NAME, post);
+                console.log('מודעה נשלחה בהצלחה');
                 
                 alert('המודעה פורסמה בהצלחה! 🎉');
                 closeModal();
                 await loadPosts();
                 
-                // Reset button
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
             } catch (error) {
                 console.error('שגיאה בפרסום המודעה:', error);
-                alert('אירעה שגיאה בפרסום המודעה: ' + error.message);
-                
-                // Reset button
-                const submitBtn = document.querySelector('button[type="submit"]');
-                submitBtn.innerHTML = '<i class="fas fa-check"></i> אשר ופרסם';
+                alert('שגיאה: ' + error.message);
+            } finally {
+                // Always reset button state
+                submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
             }
         });
+
+        // Additional click handler for the submit button (backup)
+        window.submitPost = async function() {
+            const form = document.getElementById('postForm');
+            const event = new Event('submit', { cancelable: true });
+            form.dispatchEvent(event);
+        }
 
         // Close modal when clicking outside
         window.onclick = function(event) {
@@ -958,6 +978,29 @@
             if (e.ctrlKey && e.key === 'k') {
                 e.preventDefault();
                 document.getElementById('searchInput').focus();
+            }
+            
+            // Enter in modal inputs should submit form
+            if (e.key === 'Enter' && e.target.classList.contains('form-input')) {
+                e.preventDefault();
+                const form = document.getElementById('postForm');
+                const event = new Event('submit', { cancelable: true });
+                form.dispatchEvent(event);
+            }
+        });
+
+        // Add click handler to submit button as backup
+        document.addEventListener('DOMContentLoaded', function() {
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) {
+                submitBtn.addEventListener('click', function(e) {
+                    if (this.type !== 'submit') {
+                        e.preventDefault();
+                        const form = document.getElementById('postForm');
+                        const event = new Event('submit', { cancelable: true });
+                        form.dispatchEvent(event);
+                    }
+                });
             }
         });
 
