@@ -993,7 +993,9 @@
 
             if (confirm('האם אתה בטוח שברצונך למחוק את המודעה?')) {
                 try {
-                    await firestoreREST.deleteDocument(COLLECTION_NAME, docId);
+                    const token = await currentUser.getIdToken(); // שליפת טוקן
+
+                    await firestoreREST.deleteDocument(COLLECTION_NAME, docId, token); // שליחת טוקן למחיקה
                     await loadPosts();
                     alert('המודעה נמחקה בהצלחה');
                 } catch (error) {
@@ -1001,7 +1003,6 @@
 
                     if (error.message.includes('אימות')) {
                         alert('בעיית אימות - נסה להתחבר מחדש');
-                        // Optionally force re-login
                         await signOut(auth);
                     } else {
                         alert('שגיאה במחיקת המודעה: ' + error.message);
