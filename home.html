@@ -14,7 +14,7 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Genesis, Verdana, sans-serif;
             background: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1500&q=80') no-repeat center center fixed;
             background-size: cover;
             min-height: 100vh;
@@ -563,7 +563,6 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithPopup, signOut, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAtXUnR_DIDITUtHg5BxwrMIJlNUYd8G3U",
@@ -577,28 +576,317 @@
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const db = getFirestore(app);
+
+        // Firestore REST API Configuration
+        const PROJECT_ID = 'card-bni-brek';
+        const COLLECTION_NAME = 'posts';
+        const API_KEY = 'AIzaSyAtXUnR_DIDITUtHg5BxwrMIJlNUYd8G3U';
 
         const userNameSpan = document.getElementById('userName');
         const loginPrompt = document.getElementById('loginPrompt');
         const postSection = document.getElementById('postSection');
         let currentUserEmail = null;
         let currentUser = null;
+        let currentToken = null;
+
+        // Enhanced Token Management
+        class TokenManager {
+            constructor() {
+                this.token = null;
+                this.tokenExpiry = null;
+                this.refreshTimer = null;
+            }
+
+            async getValidToken() {
+                if (!currentUser) {
+                    throw new Error('משתמש לא מחובר');
+                }
+
+                // Check if token exists and is not expired (with 5 minute buffer)
+                const now = Date.now();
+                if (this.token && this.tokenExpiry && (this.tokenExpiry - now) > 5 * 60 * 1000) {
+                    return this.token;
+                }
+
+                // Get fresh token
+                try {
+                    console.log('מרענן טוקן אימות...');
+                    const tokenResult = await currentUser.getIdTokenResult(true);
+                    this.token = tokenResult.token;
+                    this.tokenExpiry = new Date(tokenResult.expirationTime).getTime();
+                    
+                    console.log('טוקן התחדש בהצלחה. תפוגה:', new Date(this.tokenExpiry).toLocaleString('he-IL'));
+                    
+                    // Set up auto-refresh timer (refresh 5 minutes before expiry)
+                    this.scheduleTokenRefresh();
+                    
+                    return this.token;
+                } catch (error) {
+                    console.error('שגיאה ברענון טוקן:', error);
+                    throw new Error('שגיאה באימות המשתמש');
+                }
+            }
+
+            scheduleTokenRefresh() {
+                if (this.refreshTimer) {
+                    clearTimeout(this.refreshTimer);
+                }
+
+                if (!this.tokenExpiry) return;
+
+                const now = Date.now();
+                const timeUntilRefresh = this.tokenExpiry - now - (10 * 60 * 1000); // Refresh 10 minutes before expiry
+
+                if (timeUntilRefresh > 0) {
+                    this.refreshTimer = setTimeout(async () => {
+                        try {
+                            await this.getValidToken();
+                            console.log('טוקן רוענן אוטומטית');
+                        } catch (error) {
+                            console.error('שגיאה ברענון אוטומטי של טוקן:', error);
+                        }
+                    }, timeUntilRefresh);
+                }
+            }
+
+            clearToken() {
+                this.token = null;
+                this.tokenExpiry = null;
+                if (this.refreshTimer) {
+                    clearTimeout(this.refreshTimer);
+                    this.refreshTimer = null;
+                }
+            }
+        }
+
+        const tokenManager = new TokenManager();
+
+        // Enhanced Firestore REST API Helper Functions
+        class FirestoreREST {
+            constructor(projectId, apiKey) {
+                this.projectId = projectId;
+                this.apiKey = apiKey;
+                this.baseURL = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
+            }
+
+            // Convert JavaScript value to Firestore value format
+            toFirestoreValue(value) {
+                if (value === null || value === undefined) {
+                    return { nullValue: null };
+                }
+                if (typeof value === 'string') {
+                    return { stringValue: value };
+                }
+                if (typeof value === 'number') {
+                    return Number.isInteger(value) ? { integerValue: value.toString() } : { doubleValue: value };
+                }
+                if (typeof value === 'boolean') {
+                    return { booleanValue: value };
+                }
+                if (value instanceof Date) {
+                    return { timestampValue: value.toISOString() };
+                }
+                if (Array.isArray(value)) {
+                    return {
+                        arrayValue: {
+                            values: value.map(v => this.toFirestoreValue(v))
+                        }
+                    };
+                }
+                if (typeof value === 'object') {
+                    const fields = {};
+                    for (const [key, val] of Object.entries(value)) {
+                        fields[key] = this.toFirestoreValue(val);
+                    }
+                    return { mapValue: { fields } };
+                }
+                return { stringValue: String(value) };
+            }
+
+            // Convert Firestore value format to JavaScript value
+            fromFirestoreValue(value) {
+                if (!value) return null;
+
+                if (value.stringValue !== undefined) return value.stringValue;
+                if (value.integerValue !== undefined) return parseInt(value.integerValue);
+                if (value.doubleValue !== undefined) return parseFloat(value.doubleValue);
+                if (value.booleanValue !== undefined) return value.booleanValue;
+                if (value.timestampValue !== undefined) return new Date(value.timestampValue);
+                if (value.nullValue !== undefined) return null;
+                if (value.arrayValue) {
+                    return value.arrayValue.values ? value.arrayValue.values.map(v => this.fromFirestoreValue(v)) : [];
+                }
+                if (value.mapValue && value.mapValue.fields) {
+                    const obj = {};
+                    for (const [key, val] of Object.entries(value.mapValue.fields)) {
+                        obj[key] = this.fromFirestoreValue(val);
+                    }
+                    return obj;
+                }
+                return null;
+            }
+
+            // Enhanced HTTP request with retry logic
+            async makeRequest(url, options = {}, retries = 3) {
+                for (let attempt = 1; attempt <= retries; attempt++) {
+                    try {
+                        const response = await fetch(url, options);
+                        
+                        if (response.status === 401) {
+                            // Token expired, clear it and try to get a new one
+                            console.log('טוקן פג תוקף, מנסה לרענן...');
+                            tokenManager.clearToken();
+                            
+                            if (attempt < retries) {
+                                // Get fresh token and retry
+                                const newToken = await tokenManager.getValidToken();
+                                if (options.headers) {
+                                    options.headers['Authorization'] = `Bearer ${newToken}`;
+                                }
+                                continue;
+                            }
+                        }
+
+                        if (!response.ok) {
+                            const errorText = await response.text();
+                            console.error(`HTTP ${response.status}: ${errorText}`);
+                            throw new Error(`שגיאת שרת: ${response.status} - ${response.statusText}`);
+                        }
+
+                        return response;
+                    } catch (error) {
+                        console.error(`ניסיון ${attempt} נכשל:`, error);
+                        
+                        if (attempt === retries) {
+                            throw error;
+                        }
+                        
+                        // Wait before retry (exponential backoff)
+                        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+                    }
+                }
+            }
+
+            // Get documents from collection
+            async getDocuments(collectionName, orderBy = null) {
+                try {
+                    let url = `${this.baseURL}/${collectionName}?key=${this.apiKey}`;
+
+                    if (orderBy) {
+                        url += `&orderBy=${orderBy.field}%20${orderBy.direction || 'desc'}`;
+                    }
+
+                    const response = await this.makeRequest(url);
+                    const data = await response.json();
+
+                    if (!data.documents) {
+                        return [];
+                    }
+
+                    return data.documents.map(doc => {
+                        const id = doc.name.split('/').pop();
+                        const fields = {};
+
+                        if (doc.fields) {
+                            for (const [key, value] of Object.entries(doc.fields)) {
+                                fields[key] = this.fromFirestoreValue(value);
+                            }
+                        }
+
+                        return { id, ...fields };
+                    });
+                } catch (error) {
+                    console.error('שגיאה בטעינת מסמכים:', error);
+                    throw error;
+                }
+            }
+
+            // Add document to collection
+            async addDocument(collectionName, data) {
+                try {
+                    const fields = {};
+                    for (const [key, value] of Object.entries(data)) {
+                        fields[key] = this.toFirestoreValue(value);
+                    }
+
+                    const token = await tokenManager.getValidToken();
+
+                    const response = await this.makeRequest(
+                        `${this.baseURL}/${collectionName}?key=${this.apiKey}`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify({ fields })
+                        }
+                    );
+
+                    const result = await response.json();
+                    return result.name.split('/').pop(); // Return document ID
+                } catch (error) {
+                    console.error('שגיאה בהוספת מסמך:', error);
+                    if (error.message.includes('401') || error.message.includes('אימות')) {
+                        throw new Error('שגיאה באימות - אנא התחבר מחדש');
+                    }
+                    throw error;
+                }
+            }
+
+            // Delete document
+            async deleteDocument(collectionName, docId) {
+                try {
+                    const token = await tokenManager.getValidToken();
+
+                    const response = await this.makeRequest(
+                        `${this.baseURL}/${collectionName}/${docId}?key=${this.apiKey}`,
+                        {
+                            method: 'DELETE',
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            }
+                        }
+                    );
+
+                    return true;
+                } catch (error) {
+                    console.error('שגיאה במחיקת מסמך:', error);
+                    if (error.message.includes('401') || error.message.includes('אימות')) {
+                        throw new Error('שגיאה באימות - אנא התחבר מחדש');
+                    }
+                    throw error;
+                }
+            }
+        }
+
+        // Initialize Firestore REST client
+        const firestoreREST = new FirestoreREST(PROJECT_ID, API_KEY);
 
         // Authentication handlers
-        onAuthStateChanged(auth, user => {
+        onAuthStateChanged(auth, async user => {
             if (user) {
                 loginPrompt.classList.add('hide');
                 postSection.classList.remove('hide');
                 userNameSpan.textContent = user.displayName;
                 currentUserEmail = user.email;
                 currentUser = user;
+
+                // Initialize token on login
+                try {
+                    await tokenManager.getValidToken();
+                    console.log('אימות הושלם בהצלחה');
+                } catch (error) {
+                    console.error('שגיאה באימות ראשוני:', error);
+                }
+
                 loadPosts();
             } else {
                 loginPrompt.classList.remove('hide');
                 postSection.classList.add('hide');
                 currentUserEmail = null;
                 currentUser = null;
+                tokenManager.clearToken();
                 loadPosts();
             }
         });
@@ -615,6 +903,7 @@
 
         window.signOut = async function () {
             try {
+                tokenManager.clearToken();
                 await signOut(auth);
             } catch (error) {
                 console.error('שגיאה בהתנתקות:', error);
@@ -678,12 +967,12 @@
                     contactName,
                     contactPhone,
                     email: currentUserEmail,
-                    createdAt: serverTimestamp(),
+                    createdAt: new Date(),
                     userId: currentUser.uid
                 };
 
                 console.log('שולח מודעה:', post);
-                await addDoc(collection(db, 'posts'), post);
+                await firestoreREST.addDocument(COLLECTION_NAME, post);
                 console.log('מודעה נשלחה בהצלחה');
 
                 alert('המודעה פורסמה בהצלחה! 🎉');
@@ -692,8 +981,10 @@
 
             } catch (error) {
                 console.error('שגיאה בפרסום המודעה:', error);
-                if (error.code === 'permission-denied') {
-                    alert('שגיאה באישורים. אנא בדוק את הגדרות הפרויקט בפיירבייס.');
+                
+                if (error.message.includes('אימות') || error.message.includes('התחבר')) {
+                    alert('בעיית אימות - אנא התחבר מחדש');
+                    await signOut(auth);
                 } else {
                     alert('שגיאה: ' + error.message);
                 }
@@ -724,16 +1015,15 @@
                 const searchValue = document.getElementById('searchInput').value.toLowerCase().trim();
 
                 // Get all posts ordered by creation date
-                const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
-                const querySnapshot = await getDocs(q);
+                const posts = await firestoreREST.getDocuments(COLLECTION_NAME, {
+                    field: 'createdAt',
+                    direction: 'desc'
+                });
 
                 container.innerHTML = '';
                 let hasResults = false;
 
-                querySnapshot.forEach((docSnapshot) => {
-                    const post = docSnapshot.data();
-                    const postId = docSnapshot.id;
-
+                posts.forEach(post => {
                     // Apply search filter
                     if (searchValue === '' ||
                         (post.eventName && post.eventName.toLowerCase().includes(searchValue)) ||
@@ -746,7 +1036,7 @@
                         // Format creation date
                         let dateStr = '';
                         if (post.createdAt) {
-                            const date = post.createdAt.toDate();
+                            const date = new Date(post.createdAt);
                             dateStr = date.toLocaleDateString('he-IL') + ' ' + date.toLocaleTimeString('he-IL', {
                                 hour: '2-digit',
                                 minute: '2-digit'
@@ -762,7 +1052,7 @@
                                 <div class="card-info"><strong>טלפון / מייל:</strong> ${post.contactPhone || 'ללא פרטים'}</div>
                                 ${dateStr ? `<div class="card-info"><strong>תאריך פרסום:</strong> ${dateStr}</div>` : ''}
                                 ${post.email === currentUserEmail ?
-                                `<button class="delete-btn" onclick="deletePost('${postId}')">
+                                `<button class="delete-btn" onclick="deletePost('${post.id}')">
                                         <i class="fas fa-trash"></i> מחק מודעה
                                     </button>` : ''}
                             </div>
@@ -799,13 +1089,15 @@
 
             if (confirm('האם אתה בטוח שברצונך למחוק את המודעה?')) {
                 try {
-                    await deleteDoc(doc(db, 'posts', docId));
+                    await firestoreREST.deleteDocument(COLLECTION_NAME, docId);
                     await loadPosts();
                     alert('המודעה נמחקה בהצלחה');
                 } catch (error) {
                     console.error('שגיאה במחיקת המודעה:', error);
-                    if (error.code === 'permission-denied') {
-                        alert('שגיאה באישורים - אין לך הרשאה למחוק את המודעה הזו');
+
+                    if (error.message.includes('אימות') || error.message.includes('התחבר')) {
+                        alert('בעיית אימות - אנא התחבר מחדש');
+                        await signOut(auth);
                     } else {
                         alert('שגיאה במחיקת המודעה: ' + error.message);
                     }
@@ -878,7 +1170,7 @@
             }
         });
 
-        console.log('אפליקציית לוח הכרטיסים הופעלה בהצלחה עם Firestore SDK');
+        console.log('אפליקציית לוח הכרטיסים הופעלה בהצלחה עם Firestore REST API ומנהל טוקנים משופר');
     </script>
 </body>
 
