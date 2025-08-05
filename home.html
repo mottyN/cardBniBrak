@@ -751,7 +751,15 @@
                 userNameSpan.textContent = user.displayName;
                 currentUserEmail = user.email;
                 currentUser = user;
-                loadPosts();
+                
+                // Force token refresh on login
+                user.getIdToken(true).then(() => {
+                    console.log('טוקן אימות התחדש');
+                    loadPosts();
+                }).catch(error => {
+                    console.error('שגיאה ברענון טוקן:', error);
+                    loadPosts();
+                });
             } else {
                 loginPrompt.classList.remove('hide');
                 postSection.classList.add('hide');
@@ -760,6 +768,18 @@
                 loadPosts();
             }
         });
+
+        // Refresh token periodically (every 50 minutes)
+        setInterval(async () => {
+            if (currentUser) {
+                try {
+                    await currentUser.getIdToken(true);
+                    console.log('טוקן אימות התחדש אוטומטית');
+                } catch (error) {
+                    console.error('שגיאה ברענון אוטומטי של טוקן:', error);
+                }
+            }
+        }, 50 * 60 * 1000); // 50 minutes
 
         window.signInWithGoogle = async function () {
             const provider = new GoogleAuthProvider();
@@ -952,6 +972,11 @@
 
         // Delete post function
         window.deletePost = async function(docId) {
+            if (!currentUser) {
+                alert('אנא התחבר קודם');
+                return;
+            }
+
             if (confirm('האם אתה בטוח שברצונך למחוק את המודעה?')) {
                 try {
                     await firestoreREST.deleteDocument(COLLECTION_NAME, docId);
@@ -959,7 +984,14 @@
                     alert('המודעה נמחקה בהצלחה');
                 } catch (error) {
                     console.error('שגיאה במחיקת המודעה:', error);
-                    alert('אירעה שגיאה במחיקת המודעה: ' + error.message);
+                    
+                    if (error.message.includes('אימות')) {
+                        alert('בעיית אימות - נסה להתחבר מחדש');
+                        // Optionally force re-login
+                        await signOut(auth);
+                    } else {
+                        alert('שגיאה במחיקת המודעה: ' + error.message);
+                    }
                 }
             }
         }
