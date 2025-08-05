@@ -220,6 +220,53 @@
             border-radius: 2px;
         }
 
+        /* Tabs styling */
+        .tabs-container {
+            margin-bottom: 2rem;
+        }
+
+        .tabs {
+            display: flex;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 15px;
+            padding: 5px;
+            margin-bottom: 1.5rem;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px 20px;
+            text-align: center;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .tab.active {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .tab:hover:not(.active) {
+            background: rgba(0, 0, 0, 0.1);
+            color: #333;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
         .card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -230,6 +277,14 @@
             position: relative;
             overflow: hidden;
             transition: transform 0.3s ease;
+        }
+
+        .card.sell-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .card.buy-card {
+            background: linear-gradient(135deg, #26de81 0%, #20bf6b 100%);
         }
 
         .card::before {
@@ -253,11 +308,25 @@
             z-index: 1;
         }
 
+        .card-type-badge {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+        }
+
         .card-title {
             font-size: 1.3rem;
             font-weight: bold;
             margin-bottom: 1rem;
             color: #fff;
+            margin-top: 20px;
         }
 
         .card-info {
@@ -267,6 +336,10 @@
 
         .card-info strong {
             color: #feca57;
+        }
+
+        .buy-card .card-info strong {
+            color: #ffeaa7;
         }
 
         .delete-btn {
@@ -359,7 +432,7 @@
             margin-bottom: 0.5rem;
         }
 
-        .form-input {
+        .form-input, .form-select {
             width: 100%;
             padding: 12px 16px;
             border: 2px solid rgba(255, 255, 255, 0.3);
@@ -374,10 +447,19 @@
             color: rgba(255, 255, 255, 0.7);
         }
 
-        .form-input:focus {
+        .form-input:focus, .form-select:focus {
             outline: none;
             border-color: #feca57;
             background: rgba(255, 255, 255, 0.2);
+        }
+
+        .form-select {
+            cursor: pointer;
+        }
+
+        .form-select option {
+            background: #667eea;
+            color: white;
         }
 
         .modal-footer {
@@ -423,6 +505,18 @@
             margin: 1rem 0;
         }
 
+        .empty-state {
+            text-align: center;
+            color: #666;
+            padding: 3rem 2rem;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
         @media (max-width: 768px) {
             h1 {
                 font-size: 2rem;
@@ -436,6 +530,15 @@
             .btn {
                 padding: 10px 20px;
                 font-size: 0.9rem;
+            }
+
+            .tabs {
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .tab {
+                padding: 12px 16px;
             }
 
             .modal-content {
@@ -503,7 +606,25 @@
             <div class="section-title">
                 <i class="fas fa-list"></i> מודעות קיימות
             </div>
-            <div id="posts"></div>
+            
+            <div class="tabs-container">
+                <div class="tabs">
+                    <div class="tab active" data-tab="sell">
+                        <i class="fas fa-tag"></i> למכירה
+                    </div>
+                    <div class="tab" data-tab="buy">
+                        <i class="fas fa-shopping-cart"></i> מחפשים לקנות
+                    </div>
+                </div>
+                
+                <div id="sellTab" class="tab-content active">
+                    <div id="sellPosts"></div>
+                </div>
+                
+                <div id="buyTab" class="tab-content">
+                    <div id="buyPosts"></div>
+                </div>
+            </div>
         </div>
     </main>
 
@@ -522,6 +643,15 @@
             <div class="modal-body">
                 <form id="postForm">
                     <div class="form-group">
+                        <label class="form-label">סוג המודעה</label>
+                        <select id="postType" class="form-select" required>
+                            <option value="">בחר סוג מודעה</option>
+                            <option value="sell">למכירה</option>
+                            <option value="buy">מחפש לקנות</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
                         <label class="form-label">שם האירוע</label>
                         <input type="text" id="eventName" class="form-input" placeholder="לדוגמה: הופעת זמר ישראלי"
                             required>
@@ -533,9 +663,8 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">מספר כרטיסים</label>
-                        <input type="number" id="ticketCount" class="form-input" placeholder="כמה כרטיסים יש לך"
-                            required>
+                        <label class="form-label" id="ticketCountLabel">מספר כרטיסים</label>
+                        <input type="number" id="ticketCount" class="form-input" placeholder="כמה כרטיסים" required>
                     </div>
 
                     <div class="form-group">
@@ -588,6 +717,7 @@
         let currentUserEmail = null;
         let currentUser = null;
         let currentToken = null;
+        let currentActiveTab = 'sell';
 
         // Enhanced Token Management
         class TokenManager {
@@ -863,6 +993,51 @@
         // Initialize Firestore REST client
         const firestoreREST = new FirestoreREST(PROJECT_ID, API_KEY);
 
+        // Tab management
+        function initializeTabs() {
+            const tabs = document.querySelectorAll('.tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabId = tab.dataset.tab;
+                    
+                    // Update active tab
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    // Update active content
+                    tabContents.forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(tabId + 'Tab').classList.add('active');
+                    
+                    // Update current active tab
+                    currentActiveTab = tabId;
+                    
+                    // Load posts for the active tab
+                    loadPosts();
+                });
+            });
+        }
+
+        // Update form based on post type
+        function updateFormForPostType() {
+            const postType = document.getElementById('postType');
+            const ticketCountLabel = document.getElementById('ticketCountLabel');
+            const ticketCountInput = document.getElementById('ticketCount');
+            
+            postType.addEventListener('change', () => {
+                if (postType.value === 'buy') {
+                    ticketCountLabel.textContent = 'כמה כרטיסים מחפש';
+                    ticketCountInput.placeholder = 'כמה כרטיסים אתה מחפש';
+                } else {
+                    ticketCountLabel.textContent = 'מספר כרטיסים';
+                    ticketCountInput.placeholder = 'כמה כרטיסים יש לך';
+                }
+            });
+        }
+
         // Authentication handlers
         onAuthStateChanged(auth, async user => {
             if (user) {
@@ -937,6 +1112,7 @@
                 submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> מפרסם...';
                 submitBtn.disabled = true;
 
+                const postType = document.getElementById('postType').value;
                 const eventName = document.getElementById('eventName').value.trim();
                 const eventCode = document.getElementById('eventCode').value.trim();
                 const ticketCount = parseInt(document.getElementById('ticketCount').value);
@@ -944,7 +1120,7 @@
                 const contactPhone = document.getElementById('contactPhone').value.trim();
 
                 // Validation
-                if (!eventName || !eventCode || !contactName || !contactPhone) {
+                if (!postType || !eventName || !eventCode || !contactName || !contactPhone) {
                     throw new Error('אנא מלא את כל השדות החובה');
                 }
 
@@ -961,6 +1137,7 @@
                 }
 
                 const post = {
+                    postType,
                     eventName,
                     eventCode,
                     ticketCount,
@@ -1009,8 +1186,11 @@
         // Load posts function
         async function loadPosts() {
             try {
-                const container = document.getElementById('posts');
-                container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> טוען מודעות...</div>';
+                const sellContainer = document.getElementById('sellPosts');
+                const buyContainer = document.getElementById('buyPosts');
+                
+                sellContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> טוען מודעות...</div>';
+                buyContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> טוען מודעות...</div>';
 
                 const searchValue = document.getElementById('searchInput').value.toLowerCase().trim();
 
@@ -1020,8 +1200,11 @@
                     direction: 'desc'
                 });
 
-                container.innerHTML = '';
-                let hasResults = false;
+                sellContainer.innerHTML = '';
+                buyContainer.innerHTML = '';
+                
+                let hasSellResults = false;
+                let hasBuyResults = false;
 
                 posts.forEach(post => {
                     // Apply search filter
@@ -1029,9 +1212,8 @@
                         (post.eventName && post.eventName.toLowerCase().includes(searchValue)) ||
                         (post.eventCode && post.eventCode.toLowerCase().includes(searchValue))) {
 
-                        hasResults = true;
                         const div = document.createElement('div');
-                        div.className = 'card';
+                        div.className = `card ${post.postType === 'buy' ? 'buy-card' : 'sell-card'}`;
 
                         // Format creation date
                         let dateStr = '';
@@ -1043,11 +1225,15 @@
                             });
                         }
 
+                        const postTypeText = post.postType === 'buy' ? 'מחפש לקנות' : 'למכירה';
+                        const ticketText = post.postType === 'buy' ? 'מחפש' : 'כרטיסים';
+
                         div.innerHTML = `
+                            <div class="card-type-badge">${postTypeText}</div>
                             <div class="card-content">
                                 <div class="card-title">${post.eventName || 'ללא שם'}</div>
                                 <div class="card-info"><strong>קוד:</strong> ${post.eventCode || 'ללא קוד'}</div>
-                                <div class="card-info"><strong>כרטיסים:</strong> ${post.ticketCount || 0}</div>
+                                <div class="card-info"><strong>${ticketText}:</strong> ${post.ticketCount || 0}</div>
                                 <div class="card-info"><strong>שם ליצירת קשר:</strong> ${post.contactName || 'ללא שם'}</div>
                                 <div class="card-info"><strong>טלפון / מייל:</strong> ${post.contactPhone || 'ללא פרטים'}</div>
                                 ${dateStr ? `<div class="card-info"><strong>תאריך פרסום:</strong> ${dateStr}</div>` : ''}
@@ -1057,17 +1243,43 @@
                                     </button>` : ''}
                             </div>
                         `;
-                        container.appendChild(div);
+
+                        if (post.postType === 'buy') {
+                            buyContainer.appendChild(div);
+                            hasBuyResults = true;
+                        } else {
+                            sellContainer.appendChild(div);
+                            hasSellResults = true;
+                        }
                     }
                 });
 
-                if (!hasResults) {
-                    container.innerHTML = '<div style="text-align: center; color: #666; padding: 2rem;">לא נמצאו מודעות מתאימות</div>';
+                if (!hasSellResults) {
+                    sellContainer.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-tag"></i>
+                            <div>אין מודעות מכירה כרגע</div>
+                            <div style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.7;">
+                                ${searchValue ? 'נסה לחפש מילות מפתח אחרות' : 'היה הראשון לפרסם מודעת מכירה!'}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (!hasBuyResults) {
+                    buyContainer.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-shopping-cart"></i>
+                            <div>אין בקשות לקנייה כרגע</div>
+                            <div style="font-size: 0.9rem; margin-top: 0.5rem; opacity: 0.7;">
+                                ${searchValue ? 'נסה לחפש מילות מפתח אחרות' : 'היה הראשון לפרסם בקשה לקנייה!'}
+                            </div>
+                        </div>
+                    `;
                 }
             } catch (error) {
                 console.error('שגיאה בטעינת המודעות:', error);
-                const container = document.getElementById('posts');
-                container.innerHTML = `
+                const errorHtml = `
                     <div class="error">
                         <i class="fas fa-exclamation-triangle"></i>
                         שגיאה בטעינת המודעות: ${error.message}
@@ -1077,6 +1289,8 @@
                         </button>
                     </div>
                 `;
+                document.getElementById('sellPosts').innerHTML = errorHtml;
+                document.getElementById('buyPosts').innerHTML = errorHtml;
             }
         }
 
@@ -1104,6 +1318,10 @@
                 }
             }
         }
+
+        // Initialize components
+        initializeTabs();
+        updateFormForPostType();
 
         // Load posts on page load
         loadPosts();
@@ -1157,20 +1375,25 @@
 
         window.addEventListener('offline', () => {
             console.log('אין חיבור אינטרנט');
-            const container = document.getElementById('posts');
-            if (container.innerHTML.includes('loading')) {
-                container.innerHTML = `
-                    <div class="error">
-                        <i class="fas fa-wifi-slash"></i>
-                        אין חיבור אינטרנט
-                        <br><br>
-                        בדוק את החיבור שלך ונסה שוב
-                    </div>
-                `;
+            const errorHtml = `
+                <div class="error">
+                    <i class="fas fa-wifi-slash"></i>
+                    אין חיבור אינטרנט
+                    <br><br>
+                    בדוק את החיבור שלך ונסה שוב
+                </div>
+            `;
+            const sellContainer = document.getElementById('sellPosts');
+            const buyContainer = document.getElementById('buyPosts');
+            if (sellContainer.innerHTML.includes('loading')) {
+                sellContainer.innerHTML = errorHtml;
+            }
+            if (buyContainer.innerHTML.includes('loading')) {
+                buyContainer.innerHTML = errorHtml;
             }
         });
 
-        console.log('אפליקציית לוח הכרטיסים הופעלה בהצלחה עם Firestore REST API ומנהל טוקנים משופר');
+        console.log('אפליקציית לוח הכרטיסים הופעלה בהצלחה עם טאבים למכירה וקנייה');
     </script>
 </body>
 
