@@ -48,19 +48,22 @@
             left: -50%;
             width: 200%;
             height: 200%;
-            background: repeating-linear-gradient(
-                45deg,
-                transparent,
-                transparent 10px,
-                rgba(255, 255, 255, 0.05) 10px,
-                rgba(255, 255, 255, 0.05) 20px
-            );
+            background: repeating-linear-gradient(45deg,
+                    transparent,
+                    transparent 10px,
+                    rgba(255, 255, 255, 0.05) 10px,
+                    rgba(255, 255, 255, 0.05) 20px);
             animation: float 20s linear infinite;
         }
 
         @keyframes float {
-            0% { transform: translate(-50%, -50%) rotate(0deg); }
-            100% { transform: translate(-50%, -50%) rotate(360deg); }
+            0% {
+                transform: translate(-50%, -50%) rotate(0deg);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
         }
 
         h1 {
@@ -424,12 +427,12 @@
             h1 {
                 font-size: 2rem;
             }
-            
+
             .user-info {
                 flex-direction: column;
                 text-align: center;
             }
-            
+
             .btn {
                 padding: 10px 20px;
                 font-size: 0.9rem;
@@ -479,7 +482,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div id="loginPrompt">
                 <div style="text-align: center;">
                     <button class="btn btn-primary" onclick="signInWithGoogle()">
@@ -520,24 +523,26 @@
                 <form id="postForm">
                     <div class="form-group">
                         <label class="form-label">שם האירוע</label>
-                        <input type="text" id="eventName" class="form-input" placeholder="לדוגמה: הופעת זמר ישראלי" required>
+                        <input type="text" id="eventName" class="form-input" placeholder="לדוגמה: הופעת זמר ישראלי"
+                            required>
                     </div>
-                    
+
                     <div class="form-group">
                         <label class="form-label">קוד האירוע</label>
                         <input type="text" id="eventCode" class="form-input" placeholder="קוד זיהוי האירוע" required>
                     </div>
-                    
+
                     <div class="form-group">
                         <label class="form-label">מספר כרטיסים</label>
-                        <input type="number" id="ticketCount" class="form-input" placeholder="כמה כרטיסים יש לך" required>
+                        <input type="number" id="ticketCount" class="form-input" placeholder="כמה כרטיסים יש לך"
+                            required>
                     </div>
-                    
+
                     <div class="form-group">
                         <label class="form-label">שם ליצירת קשר</label>
                         <input type="text" id="contactName" class="form-input" placeholder="השם שלך" required>
                     </div>
-                    
+
                     <div class="form-group">
                         <label class="form-label">פרטי יצירת קשר</label>
                         <input type="text" id="contactPhone" class="form-input" placeholder="טלפון או מייל" required>
@@ -571,12 +576,12 @@
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        
+
         // Firestore REST API Configuration
         const PROJECT_ID = 'card-bni-brek';
         const COLLECTION_NAME = 'posts';
         const API_KEY = 'AIzaSyAtXUnR_DIDITUtHg5BxwrMIJlNUYd8G3U';
-        
+
         const userNameSpan = document.getElementById('userName');
         const loginPrompt = document.getElementById('loginPrompt');
         const postSection = document.getElementById('postSection');
@@ -628,7 +633,7 @@
             // Convert Firestore value format to JavaScript value
             fromFirestoreValue(value) {
                 if (!value) return null;
-                
+
                 if (value.stringValue !== undefined) return value.stringValue;
                 if (value.integerValue !== undefined) return parseInt(value.integerValue);
                 if (value.doubleValue !== undefined) return parseFloat(value.doubleValue);
@@ -652,33 +657,33 @@
             async getDocuments(collectionName, orderBy = null) {
                 try {
                     let url = `${this.baseURL}/${collectionName}?key=${this.apiKey}`;
-                    
+
                     if (orderBy) {
                         url += `&orderBy=${orderBy.field}%20${orderBy.direction || 'desc'}`;
                     }
-                    
+
                     const response = await fetch(url);
-                    
+
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                    
+
                     const data = await response.json();
-                    
+
                     if (!data.documents) {
                         return [];
                     }
-                    
+
                     return data.documents.map(doc => {
                         const id = doc.name.split('/').pop();
                         const fields = {};
-                        
+
                         if (doc.fields) {
                             for (const [key, value] of Object.entries(doc.fields)) {
                                 fields[key] = this.fromFirestoreValue(value);
                             }
                         }
-                        
+
                         return { id, ...fields };
                     });
                 } catch (error) {
@@ -695,12 +700,15 @@
                         fields[key] = this.toFirestoreValue(value);
                     }
 
+                    const token = await currentUser.getIdToken(); // ⬅️ קח את הטוקן
+
                     const response = await fetch(
                         `${this.baseURL}/${collectionName}?key=${this.apiKey}`,
                         {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}` // ⬅️ שלח אותו בכותרת
                             },
                             body: JSON.stringify({ fields })
                         }
@@ -721,10 +729,15 @@
             // Delete document
             async deleteDocument(collectionName, docId) {
                 try {
+                    const token = await currentUser.getIdToken(); // ⬅️ שוב, קח את הטוקן
+
                     const response = await fetch(
                         `${this.baseURL}/${collectionName}/${docId}?key=${this.apiKey}`,
                         {
-                            method: 'DELETE'
+                            method: 'DELETE',
+                            headers: {
+                                'Authorization': `Bearer ${token}` // ⬅️ ושלח אותו
+                            }
                         }
                     );
 
@@ -738,6 +751,7 @@
                     throw error;
                 }
             }
+
         }
 
         // Initialize Firestore REST client
@@ -751,7 +765,7 @@
                 userNameSpan.textContent = user.displayName;
                 currentUserEmail = user.email;
                 currentUser = user;
-                
+
                 // Force token refresh on login
                 user.getIdToken(true).then(() => {
                     console.log('טוקן אימות התחדש');
@@ -800,32 +814,32 @@
         }
 
         // Modal handlers
-        window.openModal = function() {
+        window.openModal = function () {
             document.getElementById('postModal').style.display = 'block';
         }
 
-        window.closeModal = function() {
+        window.closeModal = function () {
             document.getElementById('postModal').style.display = 'none';
             document.getElementById('postForm').reset();
         }
 
         // Form submission
-        document.getElementById('postForm').addEventListener('submit', async function(e) {
+        document.getElementById('postForm').addEventListener('submit', async function (e) {
             e.preventDefault();
-            
+
             if (!currentUserEmail || !currentUser) {
                 alert('אנא התחבר קודם');
                 return;
             }
-            
+
             const submitBtn = document.querySelector('#postModal button[type="submit"]');
             const originalText = submitBtn.innerHTML;
-            
+
             try {
                 // Show loading state immediately
                 submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> מפרסם...';
                 submitBtn.disabled = true;
-                
+
                 const eventName = document.getElementById('eventName').value.trim();
                 const eventCode = document.getElementById('eventCode').value.trim();
                 const ticketCount = parseInt(document.getElementById('ticketCount').value);
@@ -863,11 +877,11 @@
                 console.log('שולח מודעה:', post);
                 await firestoreREST.addDocument(COLLECTION_NAME, post);
                 console.log('מודעה נשלחה בהצלחה');
-                
+
                 alert('המודעה פורסמה בהצלחה! 🎉');
                 closeModal();
                 await loadPosts();
-                
+
             } catch (error) {
                 console.error('שגיאה בפרסום המודעה:', error);
                 alert('שגיאה: ' + error.message);
@@ -879,14 +893,14 @@
         });
 
         // Additional click handler for the submit button (backup)
-        window.submitPost = async function() {
+        window.submitPost = async function () {
             const form = document.getElementById('postForm');
             const event = new Event('submit', { cancelable: true });
             form.dispatchEvent(event);
         }
 
         // Close modal when clicking outside
-        window.onclick = function(event) {
+        window.onclick = function (event) {
             const modal = document.getElementById('postModal');
             if (event.target == modal) {
                 closeModal();
@@ -901,28 +915,28 @@
             try {
                 const container = document.getElementById('posts');
                 container.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> טוען מודעות...</div>';
-                
+
                 const searchValue = document.getElementById('searchInput').value.toLowerCase().trim();
-                
+
                 // Get all posts ordered by creation date
                 const posts = await firestoreREST.getDocuments(COLLECTION_NAME, {
                     field: 'createdAt',
                     direction: 'desc'
                 });
-                
+
                 container.innerHTML = '';
                 let hasResults = false;
-                
+
                 posts.forEach(post => {
                     // Apply search filter
-                    if (searchValue === '' || 
+                    if (searchValue === '' ||
                         (post.eventName && post.eventName.toLowerCase().includes(searchValue)) ||
                         (post.eventCode && post.eventCode.toLowerCase().includes(searchValue))) {
-                        
+
                         hasResults = true;
                         const div = document.createElement('div');
                         div.className = 'card';
-                        
+
                         // Format creation date
                         let dateStr = '';
                         if (post.createdAt) {
@@ -932,7 +946,7 @@
                                 minute: '2-digit'
                             });
                         }
-                        
+
                         div.innerHTML = `
                             <div class="card-content">
                                 <div class="card-title">${post.eventName || 'ללא שם'}</div>
@@ -941,8 +955,8 @@
                                 <div class="card-info"><strong>שם ליצירת קשר:</strong> ${post.contactName || 'ללא שם'}</div>
                                 <div class="card-info"><strong>טלפון / מייל:</strong> ${post.contactPhone || 'ללא פרטים'}</div>
                                 ${dateStr ? `<div class="card-info"><strong>תאריך פרסום:</strong> ${dateStr}</div>` : ''}
-                                ${post.email === currentUserEmail ? 
-                                    `<button class="delete-btn" onclick="deletePost('${post.id}')">
+                                ${post.email === currentUserEmail ?
+                                `<button class="delete-btn" onclick="deletePost('${post.id}')">
                                         <i class="fas fa-trash"></i> מחק מודעה
                                     </button>` : ''}
                             </div>
@@ -971,7 +985,7 @@
         }
 
         // Delete post function
-        window.deletePost = async function(docId) {
+        window.deletePost = async function (docId) {
             if (!currentUser) {
                 alert('אנא התחבר קודם');
                 return;
@@ -984,7 +998,7 @@
                     alert('המודעה נמחקה בהצלחה');
                 } catch (error) {
                     console.error('שגיאה במחיקת המודעה:', error);
-                    
+
                     if (error.message.includes('אימות')) {
                         alert('בעיית אימות - נסה להתחבר מחדש');
                         // Optionally force re-login
@@ -1000,18 +1014,18 @@
         loadPosts();
 
         // Add keyboard shortcuts
-        document.addEventListener('keydown', function(e) {
+        document.addEventListener('keydown', function (e) {
             // ESC to close modal
             if (e.key === 'Escape') {
                 closeModal();
             }
-            
+
             // Ctrl+K to focus search
             if (e.ctrlKey && e.key === 'k') {
                 e.preventDefault();
                 document.getElementById('searchInput').focus();
             }
-            
+
             // Enter in modal inputs should submit form
             if (e.key === 'Enter' && e.target.classList.contains('form-input')) {
                 e.preventDefault();
@@ -1022,10 +1036,10 @@
         });
 
         // Add click handler to submit button as backup
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const submitBtn = document.getElementById('submitBtn');
             if (submitBtn) {
-                submitBtn.addEventListener('click', function(e) {
+                submitBtn.addEventListener('click', function (e) {
                     if (this.type !== 'submit') {
                         e.preventDefault();
                         const form = document.getElementById('postForm');
