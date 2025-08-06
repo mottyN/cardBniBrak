@@ -741,8 +741,7 @@
 
                     <div class="form-group">
                         <label class="form-label">שם האירוע</label>
-                        <input type="text" id="eventName" class="form-input" placeholder="לדוגמה:  חפץ חיים "
-                            required>
+                        <input type="text" id="eventName" class="form-input" placeholder="לדוגמה:  חפץ חיים " required>
                         <div class="error-message" id="eventNameError"></div>
                     </div>
 
@@ -1142,20 +1141,32 @@
                 tab.addEventListener('click', () => {
                     const tabId = tab.dataset.tab;
 
-                    // Update active tab
+                    // עדכון מצב הסינון הכללי לפי הטאב
+                    currentSearchFilter = tabId;
+
+                    // עדכון כפתורי הסינון העליונים
+                    const filterButtons = document.querySelectorAll('.search-filter-btn');
+                    filterButtons.forEach(btn => {
+                        btn.classList.remove('active');
+                        if (btn.dataset.filter === tabId) {
+                            btn.classList.add('active');
+                        }
+                    });
+
+                    // עדכון טאב פעיל
                     tabs.forEach(t => t.classList.remove('active'));
                     tab.classList.add('active');
 
-                    // Update active content
+                    // עדכון תוכן מוצג
                     tabContents.forEach(content => {
                         content.classList.remove('active');
                     });
                     document.getElementById(tabId + 'Tab').classList.add('active');
 
-                    // Update current active tab
+                    // שמירת הטאב הנוכחי
                     currentActiveTab = tabId;
 
-                    // Load posts for the active tab
+                    // טעינת פוסטים מתאימים
                     loadPosts();
                 });
             });
