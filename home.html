@@ -478,7 +478,8 @@
             margin-bottom: 0.5rem;
         }
 
-        .form-input, .form-select {
+        .form-input,
+        .form-select {
             width: 100%;
             padding: 12px 16px;
             border: 2px solid rgba(255, 255, 255, 0.3);
@@ -493,7 +494,8 @@
             color: rgba(255, 255, 255, 0.7);
         }
 
-        .form-input:focus, .form-select:focus {
+        .form-input:focus,
+        .form-select:focus {
             outline: none;
             border-color: #feca57;
             background: rgba(255, 255, 255, 0.2);
@@ -676,9 +678,7 @@
                     <input type="text" id="searchInput" class="search-input" placeholder="הקלד שם אירוע או קוד...">
                 </div>
                 <div class="search-filters">
-                    <button class="search-filter-btn active" data-filter="all">
-                        <i class="fas fa-list"></i> הכל
-                    </button>
+
                     <button class="search-filter-btn" data-filter="sell">
                         <i class="fas fa-tag"></i> למכירה
                     </button>
@@ -693,7 +693,7 @@
             <div class="section-title">
                 <i class="fas fa-list"></i> מודעות קיימות
             </div>
-            
+
             <div class="tabs-container">
                 <div class="tabs">
                     <div class="tab active" data-tab="sell">
@@ -703,11 +703,11 @@
                         <i class="fas fa-shopping-cart"></i> מחפשים לקנות
                     </div>
                 </div>
-                
+
                 <div id="sellTab" class="tab-content active">
                     <div id="sellPosts"></div>
                 </div>
-                
+
                 <div id="buyTab" class="tab-content">
                     <div id="buyPosts"></div>
                 </div>
@@ -741,19 +741,22 @@
 
                     <div class="form-group">
                         <label class="form-label">שם האירוע</label>
-                        <input type="text" id="eventName" class="form-input" placeholder="לדוגמה: הופעת זמר ישראלי" required>
+                        <input type="text" id="eventName" class="form-input" placeholder="לדוגמה: הופעת זמר ישראלי"
+                            required>
                         <div class="error-message" id="eventNameError"></div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">קוד האירוע (3 ספרות)</label>
-                        <input type="text" id="eventCode" class="form-input" placeholder="123" required maxlength="3" pattern="[0-9]{3}">
+                        <input type="text" id="eventCode" class="form-input" placeholder="123" required maxlength="3"
+                            pattern="[0-9]{3}">
                         <div class="error-message" id="eventCodeError">הקוד חייב להכיל בדיוק 3 ספרות</div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label" id="ticketCountLabel">מספר כרטיסים</label>
-                        <input type="number" id="ticketCount" class="form-input" placeholder="כמה כרטיסים" required min="1">
+                        <input type="number" id="ticketCount" class="form-input" placeholder="כמה כרטיסים" required
+                            min="1">
                         <div class="error-message" id="ticketCountError"></div>
                     </div>
 
@@ -837,12 +840,12 @@
                     const tokenResult = await currentUser.getIdTokenResult(true);
                     this.token = tokenResult.token;
                     this.tokenExpiry = new Date(tokenResult.expirationTime).getTime();
-                    
+
                     console.log('טוקן התחדש בהצלחה. תפוגה:', new Date(this.tokenExpiry).toLocaleString('he-IL'));
-                    
+
                     // Set up auto-refresh timer (refresh 5 minutes before expiry)
                     this.scheduleTokenRefresh();
-                    
+
                     return this.token;
                 } catch (error) {
                     console.error('שגיאה ברענון טוקן:', error);
@@ -954,12 +957,12 @@
                 for (let attempt = 1; attempt <= retries; attempt++) {
                     try {
                         const response = await fetch(url, options);
-                        
+
                         if (response.status === 401) {
                             // Token expired, clear it and try to get a new one
                             console.log('טוקן פג תוקף, מנסה לרענן...');
                             tokenManager.clearToken();
-                            
+
                             if (attempt < retries) {
                                 // Get fresh token and retry
                                 const newToken = await tokenManager.getValidToken();
@@ -979,11 +982,11 @@
                         return response;
                     } catch (error) {
                         console.error(`ניסיון ${attempt} נכשל:`, error);
-                        
+
                         if (attempt === retries) {
                             throw error;
                         }
-                        
+
                         // Wait before retry (exponential backoff)
                         await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
                     }
@@ -1089,20 +1092,45 @@
         // Search filter functionality
         function initializeSearchFilters() {
             const searchFilterBtns = document.querySelectorAll('.search-filter-btn');
-            
+
             searchFilterBtns.forEach(btn => {
                 btn.addEventListener('click', () => {
                     // Update active filter button
                     searchFilterBtns.forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
-                    
+
                     // Update current search filter
                     currentSearchFilter = btn.dataset.filter;
-                    
+
                     // Load posts with new filter
                     loadPosts();
+                    if (btn.dataset.filter === 'sell' || btn.dataset.filter === 'buy') {
+                        switchTab(btn.dataset.filter);
+                    }
                 });
             });
+        }
+        function switchTab(tabId) {
+            const tabs = document.querySelectorAll('.tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabs.forEach(t => {
+                t.classList.remove('active');
+                if (t.dataset.tab === tabId) {
+                    t.classList.add('active');
+                }
+            });
+
+            tabContents.forEach(c => {
+                c.classList.remove('active');
+            });
+
+            const targetTab = document.getElementById(tabId + 'Tab');
+            if (targetTab) {
+                targetTab.classList.add('active');
+            }
+
+            currentActiveTab = tabId;
         }
 
         // Tab management
@@ -1113,20 +1141,20 @@
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
                     const tabId = tab.dataset.tab;
-                    
+
                     // Update active tab
                     tabs.forEach(t => t.classList.remove('active'));
                     tab.classList.add('active');
-                    
+
                     // Update active content
                     tabContents.forEach(content => {
                         content.classList.remove('active');
                     });
                     document.getElementById(tabId + 'Tab').classList.add('active');
-                    
+
                     // Update current active tab
                     currentActiveTab = tabId;
-                    
+
                     // Load posts for the active tab
                     loadPosts();
                 });
@@ -1136,15 +1164,15 @@
         // Form validation
         function validateForm() {
             let isValid = true;
-            
+
             // Clear previous errors
             const errorMessages = document.querySelectorAll('.error-message');
             const inputs = document.querySelectorAll('.form-input, .form-select');
-            
+
             errorMessages.forEach(msg => {
                 msg.style.display = 'none';
             });
-            
+
             inputs.forEach(input => {
                 input.classList.remove('error');
             });
@@ -1214,7 +1242,7 @@
         function showError(inputId, errorId, message) {
             const input = document.getElementById(inputId);
             const errorElement = document.getElementById(errorId);
-            
+
             input.classList.add('error');
             errorElement.textContent = message;
             errorElement.style.display = 'block';
@@ -1225,7 +1253,7 @@
             const postType = document.getElementById('postType');
             const ticketCountLabel = document.getElementById('ticketCountLabel');
             const ticketCountInput = document.getElementById('ticketCount');
-            
+
             postType.addEventListener('change', () => {
                 if (postType.value === 'buy') {
                     ticketCountLabel.textContent = 'כמה כרטיסים מחפש';
@@ -1241,14 +1269,14 @@
         function initializeEventCodeValidation() {
             const eventCodeInput = document.getElementById('eventCode');
             const errorElement = document.getElementById('eventCodeError');
-            
-            eventCodeInput.addEventListener('input', function(e) {
+
+            eventCodeInput.addEventListener('input', function (e) {
                 let value = e.target.value.replace(/\D/g, ''); // Remove non-digits
                 if (value.length > 3) {
                     value = value.slice(0, 3); // Limit to 3 digits
                 }
                 e.target.value = value;
-                
+
                 // Show/hide error message
                 if (value.length === 0) {
                     errorElement.style.display = 'none';
@@ -1319,15 +1347,15 @@
         window.closeModal = function () {
             document.getElementById('postModal').style.display = 'none';
             document.getElementById('postForm').reset();
-            
+
             // Clear all error messages
             const errorMessages = document.querySelectorAll('.error-message');
             const inputs = document.querySelectorAll('.form-input, .form-select');
-            
+
             errorMessages.forEach(msg => {
                 msg.style.display = 'none';
             });
-            
+
             inputs.forEach(input => {
                 input.classList.remove('error');
             });
@@ -1384,7 +1412,7 @@
 
             } catch (error) {
                 console.error('שגיאה בפרסום המודעה:', error);
-                
+
                 if (error.message.includes('אימות') || error.message.includes('התחבר')) {
                     alert('בעיית אימות - אנא התחבר מחדש');
                     await signOut(auth);
@@ -1414,7 +1442,7 @@
             try {
                 const sellContainer = document.getElementById('sellPosts');
                 const buyContainer = document.getElementById('buyPosts');
-                
+
                 sellContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> טוען מודעות...</div>';
                 buyContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> טוען מודעות...</div>';
 
@@ -1428,7 +1456,7 @@
 
                 sellContainer.innerHTML = '';
                 buyContainer.innerHTML = '';
-                
+
                 let hasSellResults = false;
                 let hasBuyResults = false;
 
@@ -1439,7 +1467,7 @@
                         (post.eventCode && post.eventCode.toLowerCase().includes(searchValue));
 
                     // Apply type filter
-                    const matchesTypeFilter = currentSearchFilter === 'all' || 
+                    const matchesTypeFilter = currentSearchFilter === 'all' ||
                         post.postType === currentSearchFilter;
 
                     if (matchesSearch && matchesTypeFilter) {
