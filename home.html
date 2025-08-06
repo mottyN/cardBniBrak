@@ -577,6 +577,12 @@
             opacity: 0.5;
         }
 
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
         @media (max-width: 768px) {
             h1 {
                 font-size: 2rem;
@@ -632,6 +638,9 @@
                 min-width: 120px;
                 justify-content: center;
             }
+
+
+
         }
     </style>
 </head>
@@ -705,11 +714,11 @@
                 </div>
 
                 <div id="sellTab" class="tab-content active">
-                    <div id="sellPosts"></div>
+                    <div id="sellPosts" class="cards-grid"></div>
                 </div>
 
                 <div id="buyTab" class="tab-content">
-                    <div id="buyPosts"></div>
+                    <div id="buyPosts" class="cards-grid"></div>
                 </div>
             </div>
         </div>
