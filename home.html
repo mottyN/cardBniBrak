@@ -1621,15 +1621,15 @@
         });
 
         // Auto-refresh posts every 30 seconds
-        setInterval(async () => {
-            if (!document.hidden) { // Only refresh if page is visible
-                try {
-                    await loadPosts();
-                } catch (error) {
-                    console.error('שגיאה ברענון אוטומטי:', error);
-                }
-            }
-        }, 30000);
+        // setInterval(async () => {
+        //     if (!document.hidden) { // Only refresh if page is visible
+        //         try {
+        //             await loadPosts();
+        //         } catch (error) {
+        //             console.error('שגיאה ברענון אוטומטי:', error);
+        //         }
+        //     }
+        // }, 30000);
 
         // Handle page visibility change
         document.addEventListener('visibilitychange', () => {
