@@ -1004,15 +1004,21 @@
             // Get documents from collection
             async getDocuments(collectionName, orderBy = null) {
                 try {
-                    let url = `${this.baseURL}/${collectionName}?key=${this.apiKey}`;
+                    // דורש משתמש מחובר וטוקן תקף
+                    const token = await tokenManager.getValidToken();
 
+                    let url = `${this.baseURL}/${collectionName}?key=${this.apiKey}`;
                     if (orderBy) {
                         url += `&orderBy=${orderBy.field}%20${orderBy.direction || 'desc'}`;
                     }
 
-                    const response = await this.makeRequest(url);
-                    const data = await response.json();
+                    const response = await this.makeRequest(url, {
+                        headers: {
+                            'Authorization': `Bearer ${token}` // חשוב: כותרת אימות גם לקריאה
+                        }
+                    });
 
+                    const data = await response.json();
                     if (!data.documents) {
                         return [];
                     }
@@ -1020,20 +1026,24 @@
                     return data.documents.map(doc => {
                         const id = doc.name.split('/').pop();
                         const fields = {};
-
                         if (doc.fields) {
                             for (const [key, value] of Object.entries(doc.fields)) {
                                 fields[key] = this.fromFirestoreValue(value);
                             }
                         }
-
                         return { id, ...fields };
                     });
+
                 } catch (error) {
                     console.error('שגיאה בטעינת מסמכים:', error);
+                    // הודעה ברורה כשאין התחברות/אימות
+                    if (error.message.includes('לא מחובר') || error.message.includes('אימות') || error.message.includes('401')) {
+                        throw new Error('יש להתחבר עם גוגל כדי לצפות במודעות');
+                    }
                     throw error;
                 }
             }
+
 
             // Add document to collection
             async addDocument(collectionName, data) {
@@ -1459,6 +1469,18 @@
 
         // Load posts function with enhanced filtering
         async function loadPosts() {
+            if (!currentUser) {
+                // אופציונלי: נקה/הצג מצב ריק
+                document.getElementById('sellPosts').innerHTML = `
+      <div class="empty-state"><i class="fas fa-lock"></i>
+        עליך להתחבר כדי לצפות במודעות
+      </div>`;
+                document.getElementById('buyPosts').innerHTML = `
+      <div class="empty-state"><i class="fas fa-lock"></i>
+        עליך להתחבר כדי לצפות במודעות
+      </div>`;
+                return;
+            }
             try {
                 const sellContainer = document.getElementById('sellPosts');
                 const buyContainer = document.getElementById('buyPosts');
