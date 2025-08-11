@@ -1023,8 +1023,11 @@
             }
 
             // Get documents from collection
+
             async getDocuments(collectionName, orderBy = null) {
                 try {
+                    const { token1 } = await getToken(appCheck, /* forceRefresh */ false);
+
                     // דורש משתמש מחובר וטוקן תקף
                     const token = await tokenManager.getValidToken();
 
@@ -1035,7 +1038,8 @@
 
                     const response = await this.makeRequest(url, {
                         headers: {
-                            'Authorization': `Bearer ${token}` // חשוב: כותרת אימות גם לקריאה
+                            'Authorization': `Bearer ${token}`,
+                            "X-Firebase-AppCheck": token1 // חשוב: כותרת אימות גם לקריאה
                         }
                     });
 
@@ -1069,6 +1073,8 @@
             // Add document to collection
             async addDocument(collectionName, data) {
                 try {
+                    const { token1 } = await getToken(appCheck, /* forceRefresh */ false);
+
                     const fields = {};
                     for (const [key, value] of Object.entries(data)) {
                         fields[key] = this.toFirestoreValue(value);
@@ -1082,7 +1088,8 @@
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`
+                                'Authorization': `Bearer ${token}`,
+                                "X-Firebase-AppCheck": token1
                             },
                             body: JSON.stringify({ fields })
                         }
@@ -1102,6 +1109,8 @@
             // Delete document
             async deleteDocument(collectionName, docId) {
                 try {
+                    const { token1 } = await getToken(appCheck, /* forceRefresh */ false);
+
                     const token = await tokenManager.getValidToken();
 
                     const response = await this.makeRequest(
@@ -1109,7 +1118,8 @@
                         {
                             method: 'DELETE',
                             headers: {
-                                'Authorization': `Bearer ${token}`
+                                'Authorization': `Bearer ${token}`,
+                                "X-Firebase-AppCheck": token1
                             }
                         }
                     );
