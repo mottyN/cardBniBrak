@@ -802,8 +802,12 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInWithPopup, signOut, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
-        import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-analytics.js";
+        import { getAuth, onAuthStateChanged, signInWithPopup, signOut, GoogleAuthProvider }
+            from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+        import { getAnalytics, logEvent }
+            from "https://www.gstatic.com/firebasejs/9.6.1/firebase-analytics.js";
+        import { initializeAppCheck, ReCaptchaV3Provider }
+            from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app-check.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAtXUnR_DIDITUtHg5BxwrMIJlNUYd8G3U",
@@ -816,10 +820,16 @@
         };
 
         const app = initializeApp(firebaseConfig);
+
+        // App Check – הכנס כאן את ה-SITE KEY שלך
+        initializeAppCheck(app, {
+            provider: new ReCaptchaV3Provider("SITE_KEY_מ-reCAPTCHA"),
+            isTokenAutoRefreshEnabled: true
+        });
+
         const auth = getAuth(app);
         const analytics = getAnalytics(app);
-        logEvent(analytics, 'page_view');
-
+        logEvent(analytics, "page_view");
         // Firestore REST API Configuration
         const PROJECT_ID = 'card-bni-brek';
         const COLLECTION_NAME = 'posts';
