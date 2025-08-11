@@ -1039,7 +1039,7 @@
                     const response = await this.makeRequest(url, {
                         headers: {
                             'Authorization': `Bearer ${token1}`,
-                            "X-Firebase-AppCheck": token // חשוב: כותרת אימות גם לקריאה
+                            "X-Firebase-AppCheck": appCheckToken // חשוב: כותרת אימות גם לקריאה
                         }
                     });
 
@@ -1090,7 +1090,7 @@
                             headers: {
                                 'Content-Type': 'application/json',
                                 'Authorization': `Bearer ${token1}`,
-                                "X-Firebase-AppCheck": token
+                                "X-Firebase-AppCheck": appCheckToken
                             },
                             body: JSON.stringify({ fields })
                         }
@@ -1120,7 +1120,7 @@
                             method: 'DELETE',
                             headers: {
                                 'Authorization': `Bearer ${token1}`,
-                                "X-Firebase-AppCheck": token
+                                "X-Firebase-AppCheck": appCheckToken
                             }
                         }
                     );
