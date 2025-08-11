@@ -822,7 +822,7 @@
         const app = initializeApp(firebaseConfig);
 
         // App Check – הכנס כאן את ה-SITE KEY שלך
-          const appCheck = initializeAppCheck(app, {
+        const appCheck = initializeAppCheck(app, {
             provider: new ReCaptchaV3Provider("6LdyOaIrAAAAAPMqScUGTAnIodRefMSppysVxo-5"),
             isTokenAutoRefreshEnabled: true
         });
@@ -1026,10 +1026,10 @@
 
             async getDocuments(collectionName, orderBy = null) {
                 try {
-                    const { token1 } = await getToken(appCheck, /* forceRefresh */ false);
+                    const { token: appCheckToken } = await getToken(appCheck, false);
 
                     // דורש משתמש מחובר וטוקן תקף
-                    const token = await tokenManager.getValidToken();
+                    const token1 = await tokenManager.getValidToken();
 
                     let url = `${this.baseURL}/${collectionName}?key=${this.apiKey}`;
                     if (orderBy) {
@@ -1038,8 +1038,8 @@
 
                     const response = await this.makeRequest(url, {
                         headers: {
-                            'Authorization': `Bearer ${token}`,
-                            "X-Firebase-AppCheck": token1 // חשוב: כותרת אימות גם לקריאה
+                            'Authorization': `Bearer ${token1}`,
+                            "X-Firebase-AppCheck": token // חשוב: כותרת אימות גם לקריאה
                         }
                     });
 
@@ -1073,14 +1073,15 @@
             // Add document to collection
             async addDocument(collectionName, data) {
                 try {
-                    const { token1 } = await getToken(appCheck, /* forceRefresh */ false);
+                    
+                    const { token: appCheckToken } = await getToken(appCheck, false);
 
                     const fields = {};
                     for (const [key, value] of Object.entries(data)) {
                         fields[key] = this.toFirestoreValue(value);
                     }
 
-                    const token = await tokenManager.getValidToken();
+                    const token1 = await tokenManager.getValidToken();
 
                     const response = await this.makeRequest(
                         `${this.baseURL}/${collectionName}?key=${this.apiKey}`,
@@ -1088,8 +1089,8 @@
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`,
-                                "X-Firebase-AppCheck": token1
+                                'Authorization': `Bearer ${token1}`,
+                                "X-Firebase-AppCheck": token
                             },
                             body: JSON.stringify({ fields })
                         }
@@ -1109,17 +1110,17 @@
             // Delete document
             async deleteDocument(collectionName, docId) {
                 try {
-                    const { token1 } = await getToken(appCheck, /* forceRefresh */ false);
+                    const { token: appCheckToken } = await getToken(appCheck, false);
 
-                    const token = await tokenManager.getValidToken();
+                    const token1 = await tokenManager.getValidToken();
 
                     const response = await this.makeRequest(
                         `${this.baseURL}/${collectionName}/${docId}?key=${this.apiKey}`,
                         {
                             method: 'DELETE',
                             headers: {
-                                'Authorization': `Bearer ${token}`,
-                                "X-Firebase-AppCheck": token1
+                                'Authorization': `Bearer ${token1}`,
+                                "X-Firebase-AppCheck": token
                             }
                         }
                     );
