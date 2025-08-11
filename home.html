@@ -822,7 +822,7 @@
         const app = initializeApp(firebaseConfig);
 
         // App Check – הכנס כאן את ה-SITE KEY שלך
-        initializeAppCheck(app, {
+          const appCheck = initializeAppCheck(app, {
             provider: new ReCaptchaV3Provider("6LdyOaIrAAAAAPMqScUGTAnIodRefMSppysVxo-5"),
             isTokenAutoRefreshEnabled: true
         });
