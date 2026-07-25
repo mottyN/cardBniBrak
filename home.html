@@ -1261,6 +1261,17 @@
                             }
                         }
 
+                        if (response.status === 429) {
+                            // יותר מדי בקשות - להמתין לפי הוראת השרת לפני ניסיון חוזר
+                            if (attempt < retries) {
+                                const retryAfter = parseInt(response.headers.get('Retry-After'), 10) || attempt * 10;
+                                console.warn(`יותר מדי בקשות, ממתין ${retryAfter} שניות לפני ניסיון חוזר...`);
+                                await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+                                continue;
+                            }
+                            throw new Error('יותר מדי בקשות לשרת - אנא המתן דקה ונסה שוב');
+                        }
+
                         if (!response.ok) {
                             const errorText = await response.text();
                             console.error(`HTTP ${response.status}: ${errorText}`);
@@ -1411,8 +1422,8 @@
                     // Update current search filter
                     currentSearchFilter = btn.dataset.filter;
 
-                    // Load posts with new filter
-                    loadPosts();
+                    // סינון מקומי מהמטמון - בלי קריאה לשרת
+                    if (currentUser) renderPosts();
                     if (btn.dataset.filter === 'sell' || btn.dataset.filter === 'buy') {
                         switchTab(btn.dataset.filter);
                     }
@@ -1476,8 +1487,8 @@
                     // שמירת הטאב הנוכחי
                     currentActiveTab = tabId;
 
-                    // טעינת פוסטים מתאימים
-                    loadPosts();
+                    // סינון מקומי מהמטמון - בלי קריאה לשרת
+                    if (currentUser) renderPosts();
                 });
             });
         }
@@ -1637,6 +1648,9 @@
                 currentUserEmail = null;
                 currentUser = null;
                 tokenManager.clearToken();
+                // איפוס המטמון בהתנתקות
+                cachedPosts = [];
+                lastFetchTime = 0;
                 loadPosts();
             }
         });
@@ -1729,7 +1743,7 @@
 
                 alert('המודעה פורסמה בהצלחה! 🎉');
                 closeModal();
-                await loadPosts();
+                await loadPosts(true);
 
             } catch (error) {
                 console.error('שגיאה בפרסום המודעה:', error);
@@ -1759,11 +1773,19 @@
             }
         }
 
-        // Search functionality
-        document.getElementById('searchInput').addEventListener('input', loadPosts);
+        // Search functionality - סינון מקומי בלבד, בלי קריאה לשרת
+        document.getElementById('searchInput').addEventListener('input', () => {
+            if (currentUser) renderPosts();
+        });
+
+        // מטמון מודעות - מונע קריאות שרת מיותרות (הסינון נעשה בצד הלקוח)
+        let cachedPosts = [];
+        let lastFetchTime = 0;
+        let fetchPromise = null;
+        const POSTS_CACHE_TTL = 30000; // 30 שניות
 
         // Load posts function with enhanced filtering
-        async function loadPosts() {
+        async function loadPosts(forceRefresh = false) {
             if (!currentUser) {
                 // אופציונלי: נקה/הצג מצב ריק
                 document.getElementById('sellPosts').innerHTML = `
@@ -1777,21 +1799,55 @@
                 return;
             }
             try {
+                // אם הנתונים במטמון עדיין טריים - להציג מהמטמון בלי לפנות לשרת
+                if (!forceRefresh && lastFetchTime && (Date.now() - lastFetchTime) < POSTS_CACHE_TTL) {
+                    renderPosts();
+                    return;
+                }
+
                 const sellContainer = document.getElementById('sellPosts');
                 const buyContainer = document.getElementById('buyPosts');
 
                 sellContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> טוען מודעות...</div>';
                 buyContainer.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> טוען מודעות...</div>';
 
-                const searchValue = document.getElementById('searchInput').value.toLowerCase().trim();
+                // מניעת בקשות כפולות במקביל - כולם ממתינים לאותה בקשה
+                if (!fetchPromise) {
+                    fetchPromise = firestoreREST.getDocuments(COLLECTION_NAME, {
+                        field: 'createdAt',
+                        direction: 'desc'
+                    }).finally(() => { fetchPromise = null; });
+                }
+                cachedPosts = await fetchPromise;
+                lastFetchTime = Date.now();
 
-                // Get all posts ordered by creation date
-                const posts = await firestoreREST.getDocuments(COLLECTION_NAME, {
-                    field: 'createdAt',
-                    direction: 'desc'
-                });
+                renderPosts();
+            } catch (error) {
+                console.error('שגיאה בטעינת המודעות:', error);
+                const errorHtml = `
+                    <div class="error">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        שגיאה בטעינת המודעות: ${error.message}
+                        <br><br>
+                        <button class="btn btn-secondary" onclick="loadPosts(true)">
+                            <i class="fas fa-refresh"></i> נסה שוב
+                        </button>
+                    </div>
+                `;
+                document.getElementById('sellPosts').innerHTML = errorHtml;
+                document.getElementById('buyPosts').innerHTML = errorHtml;
+            }
+        }
 
-                sellContainer.innerHTML = '';
+        // הצגת המודעות מהמטמון עם סינון מקומי (חיפוש + פילטר) - בלי קריאות שרת
+        function renderPosts() {
+            const sellContainer = document.getElementById('sellPosts');
+            const buyContainer = document.getElementById('buyPosts');
+
+            const searchValue = document.getElementById('searchInput').value.toLowerCase().trim();
+            const posts = cachedPosts;
+
+            sellContainer.innerHTML = '';
                 buyContainer.innerHTML = '';
 
                 let hasSellResults = false;
@@ -1873,22 +1929,10 @@
                         </div>
                     `;
                 }
-            } catch (error) {
-                console.error('שגיאה בטעינת המודעות:', error);
-                const errorHtml = `
-                    <div class="error">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        שגיאה בטעינת המודעות: ${error.message}
-                        <br><br>
-                        <button class="btn btn-secondary" onclick="loadPosts()">
-                            <i class="fas fa-refresh"></i> נסה שוב
-                        </button>
-                    </div>
-                `;
-                document.getElementById('sellPosts').innerHTML = errorHtml;
-                document.getElementById('buyPosts').innerHTML = errorHtml;
-            }
         }
+
+        // חשיפת loadPosts לכפתור "נסה שוב" (הסקריפט הוא module)
+        window.loadPosts = loadPosts;
 
         // Delete post function
         window.deletePost = async function (docId) {
@@ -1900,7 +1944,7 @@
             if (confirm('האם אתה בטוח שברצונך למחוק את המודעה?')) {
                 try {
                     await firestoreREST.deleteDocument(COLLECTION_NAME, docId);
-                    await loadPosts();
+                    await loadPosts(true);
                     alert('המודעה נמחקה בהצלחה');
                 } catch (error) {
                     console.error('שגיאה במחיקת המודעה:', error);
